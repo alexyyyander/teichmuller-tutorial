@@ -112,6 +112,7 @@ agent 动作 ────────────────────> 探�
       },
       "budget_used": {"steps": 7, "seconds": 940, "calls": 0},
       "exported_event_ids": ["urn:pw:event:<uuid>"],
+      "uploaded_at": null | "<ISO8601>",          // 引擎字段：最后一次 upload_proofs.py 成功时间
       "logs": ["<ISO8601>: <事件>"]
     }
   ]
@@ -159,7 +160,7 @@ agent 动作 ────────────────────> 探�
 
 **agent 授权写入（证据字段）**：`id`、`revision_of`、`origin`、`source_ref`、`claim`、`result`、`falsification`、`obstacle`、`type`、`mode`、`parent_ids`，以及 `lean_binding` 内的 `theorem/file/run/deny_proofs_axioms/lock`。写入即产生新的 append 事件，历史节点不变。
 
-**引擎独占写入（派生字段）**：`status`、`lean_binding.verified`、`lean_binding.verified_at`、`verification_level`、`audit.L1_passed/L2_passed`、`audit.audit_log`、`budget_used`、`exported_event_ids`。引擎仅在运行核验/审计程序后更新；agent 直接改这些字段视为协议违规（记录 audit_log 事件）。
+**引擎独占写入（派生字段）**：`status`、`lean_binding.verified`、`lean_binding.verified_at`、`verification_level`、`audit.L1_passed/L2_passed`、`audit.audit_log`、`budget_used`、`exported_event_ids`、`uploaded_at`。引擎仅在运行核验/审计/上传程序后更新；agent 直接改这些字段视为协议违规（记录 audit_log 事件）。
 
 **共享写入**：`logs`（agent 追加事件，引擎追加审计事件）。追加式，不覆盖。
 
@@ -262,6 +263,14 @@ L3 审计的"突破级"判定标准本身 v0.2 细化（§4 已定义触发/动�
 | L3 完整审计 | 声称突破/证明 | 完整审查 + 用户确认；结论标记经 `audit_log` 事件记录 | 标记"突破级"，需用户签字 |
 
 审计记录写入 `audit.audit_log`，不可删除。
+
+`audit_gate.py` 是审计门与状态派生引擎的可执行实现，职责：
+- 实施 L1/L2 审计检查（调用 §7.3 的核验程序，写入 `audit.L1_passed/L2_passed` 与 `audit_log`）
+- 按 §2.2 表格从证据派生 `status`、`verification_level`
+- 实现晋升门：拒绝任何不满足四条路径的节点升级，并写入拒绝原因到 `audit_log`
+- 提供 `audit_gate.py gate <tree.json> <node-id>` 命令供交互确认时手动触发
+
+它与 `lean_check.py` 的分工：`lean_check.py` 只回答"这个 Lean 文件+定理是否核验通过"；`audit_gate.py` 回答"给定全部证据（含 Lean 结果），节点该处于什么状态"。上传器 `upload_proofs.py` 复用 `audit_gate.py` 的状态结论决定过滤。
 
 ---
 
@@ -425,7 +434,7 @@ upload_proofs.py upload <tree.json>  # 重新核验 → 写入 output/uploads/<t
 upload_proofs.py verify <tree-id>    # 复核归档中所有 proof.lean 可重跑
 ```
 
-**审计一致性**：上传前重新跑 `lean_check.py`；上传完成后生成 `verify.json` 存回树节点的 `exported_event_ids`（或新增 `uploaded_at` 时间戳字段）。归档内容再次变化时，原始探索树仍是权威——归档只是导出快照。
+**审计一致性**：上传前重新跑 `lean_check.py`；上传完成后引擎将 `verify.json` 摘要写入树节点 `claim 上传清单`，并把成功时间写入节点 `uploaded_at` 字段（引擎字段，§2.3）。归档内容再次变化时，原始探索树仍是权威——归档只是导出快照。
 
 ---
 
