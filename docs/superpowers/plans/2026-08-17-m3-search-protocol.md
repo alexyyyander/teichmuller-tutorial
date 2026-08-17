@@ -130,7 +130,7 @@ pythonpath = ["orchestrator"]
 
 - [ ] **Step 4: 运行 pytest 验证骨架**
 
-Run: `cd skills/math-search && python3 -m pytest tests/ -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/ -v`
 Expected: 无测试（退出码 5 属正常）或 0 passed
 
 - [ ] **Step 5: 复制 Proofweave 基准进 `references/`**
@@ -202,7 +202,7 @@ def test_success_requires_lean_binding(sample_tree):
 
 - [ ] **Step 2: 运行测试确认失败（schema 文件不存在）**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_tree_schema.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/test_tree_schema.py -v`
 Expected: 失败（`FileNotFoundError`）
 
 - [ ] **Step 3: 写 `tree_schema.json`**
@@ -335,7 +335,7 @@ Expected: 失败（`FileNotFoundError`）
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_tree_schema.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/test_tree_schema.py -v`
 Expected: 4 passed
 
 - [ ] **Step 5: Commit**
@@ -483,7 +483,7 @@ def test_engine_fields_exported():
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_tree_lib.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/test_tree_lib.py -v`
 Expected: FAIL（`ModuleNotFoundError: tree_lib`）
 
 - [ ] **Step 3: 写实现**
@@ -665,7 +665,7 @@ if __name__ == "__main__":
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_tree_lib.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/test_tree_lib.py -v`
 Expected: 全部 passed
 
 - [ ] **Step 5: Commit**
@@ -1103,7 +1103,7 @@ def test_gate_marks_counterexample_failed_without_lean(tmp_path):
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_audit_gate.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/test_audit_gate.py -v`
 Expected: FAIL（`ModuleNotFoundError: audit_gate`）
 
 - [ ] **Step 3: 写实现**
@@ -1200,7 +1200,7 @@ if __name__ == "__main__":
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_audit_gate.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/test_audit_gate.py -v`
 Expected: 全部 passed
 
 - [ ] **Step 5: Commit**
@@ -1298,7 +1298,7 @@ def test_scan_generates_candidates(tmp_path):
 
 - [ ] **Step 3: 运行测试确认失败**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_import_workspace.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/test_import_workspace.py -v`
 Expected: FAIL（`ModuleNotFoundError: import_workspace`）
 
 - [ ] **Step 4: 写实现**
@@ -1452,14 +1452,14 @@ if __name__ == "__main__":
 
 - [ ] **Step 5: 运行测试确认通过**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_import_workspace.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/test_import_workspace.py -v`
 Expected: 全部 passed
 
 - [ ] **Step 6: 真实试点扫描（人工审核前不提交）**
 
 Run:
 ```bash
-cd skills/math-search && python3 orchestrator/import_workspace.py scan /Users/alexyu/Documents/ChatGPT/math/erdos_straus/research_log.md
+cd /Users/alexyu/Documents/ChatGPT/math && python3 skills/math-search/orchestrator/import_workspace.py scan erdos_straus/research_log.md
 ```
 Expected: 输出候选 JSON；类型分布合理。
 
@@ -1567,7 +1567,7 @@ def test_upload_sets_uploaded_at(tmp_path, monkeypatch):
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_upload_proofs.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/test_upload_proofs.py -v`
 Expected: FAIL（`ModuleNotFoundError: upload_proofs`）
 
 - [ ] **Step 3: 写实现**
@@ -1637,7 +1637,7 @@ def status(tree_path):
 def upload(tree_path, out_root="output/uploads"):
     tree = load_tree(tree_path)
     root_id = tree["root"]
-    arch_root = Path(out_root) / root_id.replace(":", "_")
+    arch_root = Path(out_root) / root_id
     proofs_dir = arch_root / "proofs"
     proofs_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1646,7 +1646,7 @@ def upload(tree_path, out_root="output/uploads"):
         ok, _ = _is_eligible(tree_path, node)
         if not ok:
             continue
-        node_dir = proofs_dir / node["id"].replace(":", "_")
+        node_dir = proofs_dir / node["id"]
         node_dir.mkdir(parents=True, exist_ok=True)
 
         b = node["lean_binding"]
@@ -1725,7 +1725,7 @@ if __name__ == "__main__":
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_upload_proofs.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/test_upload_proofs.py -v`
 Expected: 全部 passed
 
 - [ ] **Step 5: Commit**
@@ -1810,7 +1810,7 @@ def test_render_color_and_labels(tmp_path):
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_build_tree.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/test_build_tree.py -v`
 Expected: FAIL（`ModuleNotFoundError: build_tree`）
 
 - [ ] **Step 3: 写实现**
@@ -1996,7 +1996,7 @@ if __name__ == "__main__":
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_build_tree.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/test_build_tree.py -v`
 Expected: 全部 passed
 
 - [ ] **Step 5: Commit**
@@ -2088,7 +2088,7 @@ def test_synthesis_present(tmp_path):
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_export_pw.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/test_export_pw.py -v`
 Expected: FAIL（`ModuleNotFoundError: export_pw`）
 
 - [ ] **Step 3: 写实现**
@@ -2243,7 +2243,7 @@ if __name__ == "__main__":
 
 - [ ] **Step 4: 运行测试确认通过**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_export_pw.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/test_export_pw.py -v`
 Expected: 全部 passed
 
 - [ ] **Step 5: Commit**
@@ -2440,13 +2440,14 @@ def test_e2e_pipeline(tmp_path, monkeypatch):
     for cid in ["urn:m3:node:s", "urn:m3:node:g", "urn:m3:node:o"]:
         assert cid in html
 
-    # 上传：仅成功节点（目录名 `:` 已替换为 `_`，与实现一致）
+    # 上传：仅成功节点（归档目录 = 原始 root id，与实现一致）
     monkeypatch.setattr(upload_proofs, "_lean_verify_ok", lambda t, n: True)
     upload_proofs.upload(str(tree_path), out_root=str(tmp_path / "uploads"))
     with open(tree_path, encoding="utf-8") as fh:
         updated = json.load(fh)
     assert updated["nodes"][0]["uploaded_at"] is not None
     arch = tmp_path / "uploads" / "urn:m3:tree:e2e"
+    assert arch.exists()
     entries = list((arch / "proofs").iterdir())
     assert len(entries) == 1  # 只有 success 节点
 
@@ -2482,21 +2483,21 @@ def test_gate_rejects_axiom_free(tmp_path):
 
 - [ ] **Step 2: 运行测试确认失败**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_e2e_pipeline.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/test_e2e_pipeline.py -v`
 Expected: FAIL（依赖模块未全部实现，或 import 错误）
 
 - [ ] **Step 3: 运行全部测试确认通过**
 
-Run: `cd skills/math-search && python3 -m pytest tests/ -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests tests/ -v`
 Expected: 全部通过（若失败修复）
 
 - [ ] **Step 4: 真实试点端到端演练（人工审核）**
 
 ```bash
-cd /Users/alexyu/Documents/ChatGPT/math/skills/math-search
-python3 orchestrator/import_workspace.py draft /Users/alexyu/Documents/ChatGPT/math/erdos_straus/research_log.md -o /tmp/m3-draft.json
-python3 orchestrator/build_tree.py /tmp/m3-draft.json -o /tmp/m3-tree.html
-python3 orchestrator/export_pw.py /tmp/m3-draft.json --out /tmp/m3-events.json
+cd /Users/alexyu/Documents/ChatGPT/math
+python3 skills/math-search/orchestrator/import_workspace.py draft erdos_straus/research_log.md -o /tmp/m3-draft.json
+python3 skills/math-search/orchestrator/build_tree.py /tmp/m3-draft.json -o /tmp/m3-tree.html
+python3 skills/math-search/orchestrator/export_pw.py /tmp/m3-draft.json --out /tmp/m3-events.json
 ```
 Expected: 三者均成功；检查 /tmp/m3-tree.html 可在浏览器打开并显示全部节点（含失败）。
 
@@ -2511,7 +2512,7 @@ git commit -m "test: 端到端协议演练（建树/核验/可视化/上传/导�
 
 ## 完成清单（Done 定义）
 
-- [ ] 全部 9 个 task 的测试通过（`cd skills/math-search && python3 -m pytest tests/ -v` 全绿）
+- [ ] 全部 9 个 task 的测试通过（`cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests -v` 全绿）
 - [ ] 6 个脚本均有 CLI：tree_lib / lean_check / audit_gate / import_workspace / upload_proofs / export_pw
 - [ ] `build_tree.py` 输出单文件 HTML 可直接打开查看
 - [ ] 试点 `erdos_straus/research_log.md` 能 scan/draft 出草稿树
