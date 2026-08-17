@@ -97,6 +97,26 @@ def tree_path(tmp_path, sample_tree):
     p = tmp_path / "tree.json"
     p.write_text(json.dumps(sample_tree, ensure_ascii=False, indent=2))
     return str(p)
+
+
+@pytest.fixture
+def repo_root():
+    """Lean 工程根（lean-toolchain / lake-manifest.json 所在目录）。"""
+    return Path("/Users/alexyu/Documents/ChatGPT/math")
+
+
+@pytest.fixture
+def repo_lock(repo_root):
+    """与仓库实际锁定一致的 lean_binding.lock（供 lean_check 测试使用）。"""
+    return {
+        "toolchain": repo_root.joinpath("lean-toolchain").read_text(encoding="utf-8").strip(),
+        "lake_manifest_ref": str(repo_root / "lake-manifest.json"),
+    }
+
+
+@pytest.fixture
+def lean_toolchain_path(repo_root):
+    return str(repo_root / "lean-toolchain")
 ```
 
 - [ ] **Step 3: 写 `pyproject.toml`**
@@ -431,8 +451,9 @@ def test_guard_engine_write_allows_evidence_fields():
 
 
 def test_derive_view_labels(sample_node):
-    assert derive_view_label(sample_node) == "proposed"
     node = dict(sample_node)
+    node["claim"] = ""  # 无 claim → proposed
+    assert derive_view_label(node) == "proposed"
     node["claim"] = "命题"
     assert derive_view_label(node) == "unverified_claim-A"
     node["audit"] = {"L1_passed": True, "L2_passed": False, "audit_log": []}
@@ -696,7 +717,7 @@ class FakeResult:
         self.stderr = stderr
 
 
-def verified_node():
+def verified_node(repo_lock):
     from tree_lib import new_node
     n = new_node(node_id="urn:m3:node:ok", type="certificate", mode="computation", claim="c")
     n["audit"] = {"L1_passed": True, "L2_passed": False, "audit_log": []}
@@ -705,7 +726,7 @@ def verified_node():
         "file": "lean/Foo.lean",
         "run": "lake build lean/Foo.lean && lean_check.py probe --file lean/Foo.lean --theorem Nat.add_comm",
         "deny_proofs_axioms": True,
-        "lock": {"toolchain": "leanprover/lean4:v4.31.0-rc1", "lake_manifest_ref": "lake-manifest.json"},
+        "lock": dict(repo_lock),
         "verified": False,
         "verified_at": None,
     }
@@ -720,11 +741,7 @@ def write_tree(tmp_path, node):
     return str(p)
 
 
-def test_verify_all_steps_pass(tmp_path, monkeypatch):
-    orders = {
-        ("lake", "build", "lean/Foo.lean"): FakeResult(0, "", ""),
-    }
-    # 探针两次调用（#check 与 #print axioms 各跑一次 lean）
+def test_verify_all_steps_pass(tmp_path, monkeypatch, repo_lock, lean_toolchain_path):
     calls = []
 
     def fake_run(cmd):
@@ -734,49 +751,49 @@ def test_verify_all_steps_pass(tmp_path, monkeypatch):
         # lean probe
         return FakeResult(0, "Nat.add_comm : ...\npropext\nClassical.choice\n", "")
 
-    p = write_tree(tmp_path, verified_node())
+    p = write_tree(tmp_path, verified_node(repo_lock))
     monkeypatch.setattr(lean_check, "_default_run_cmd", lambda c: fake_run(c))
-    res = lean_check.verify_node(p, "urn:m3:node:ok")
+    res = lean_check.verify_node(p, "urn:m3:node:ok", toolchain_path=lean_toolchain_path)
     assert res["verified"] is True
 
 
-def test_fail_on_compile_error(tmp_path, monkeypatch):
+def test_fail_on_compile_error(tmp_path, monkeypatch, repo_lock, lean_toolchain_path):
     def fake_run(cmd):
         if cmd[:2] == ("lake", "build"):
             return FakeResult(1, "", "error")
         return FakeResult(0, "Nat.add_comm : ...\npropext\n", "")
-    p = write_tree(tmp_path, verified_node())
+    p = write_tree(tmp_path, verified_node(repo_lock))
     monkeypatch.setattr(lean_check, "_default_run_cmd", lambda c: fake_run(c))
-    res = lean_check.verify_node(p, "urn:m3:node:ok")
+    res = lean_check.verify_node(p, "urn:m3:node:ok", toolchain_path=lean_toolchain_path)
     assert res["verified"] is False
     assert "compile" in res["failed_steps"]
 
 
-def test_fail_when_theorem_missing(tmp_path, monkeypatch):
+def test_fail_when_theorem_missing(tmp_path, monkeypatch, repo_lock, lean_toolchain_path):
     def fake_run(cmd):
         if cmd[:2] == ("lake", "build"):
             return FakeResult(0, "", "")
         return FakeResult(0, "", "unknown identifier 'Nat.add_comm'")
-    p = write_tree(tmp_path, verified_node())
+    p = write_tree(tmp_path, verified_node(repo_lock))
     monkeypatch.setattr(lean_check, "_default_run_cmd", lambda c: fake_run(c))
-    res = lean_check.verify_node(p, "urn:m3:node:ok")
+    res = lean_check.verify_node(p, "urn:m3:node:ok", toolchain_path=lean_toolchain_path)
     assert "theorem_exists" in res["failed_steps"]
 
 
-def test_fail_when_user_axiom_dependency(tmp_path, monkeypatch):
+def test_fail_when_user_axiom_dependency(tmp_path, monkeypatch, repo_lock, lean_toolchain_path):
     def fake_run(cmd):
         if cmd[:2] == ("lake", "build"):
             return FakeResult(0, "", "")
         return FakeResult(0, "my_axiom\n", "")
-    p = write_tree(tmp_path, verified_node())
+    p = write_tree(tmp_path, verified_node(repo_lock))
     monkeypatch.setattr(lean_check, "_default_run_cmd", lambda c: fake_run(c))
-    res = lean_check.verify_node(p, "urn:m3:node:ok")
+    res = lean_check.verify_node(p, "urn:m3:node:ok", toolchain_path=lean_toolchain_path)
     assert "no_axioms" in res["failed_steps"]
 
 
-def test_deny_proofs_axioms_flag_not_checked_when_false(tmp_path, monkeypatch):
+def test_deny_proofs_axioms_flag_not_checked_when_false(tmp_path, monkeypatch, repo_lock, lean_toolchain_path):
     """§2.3：发现级节点无条件执行 axiom 检查——flag 不关闭检查。"""
-    n = verified_node()
+    n = verified_node(repo_lock)
     n["lean_binding"]["deny_proofs_axioms"] = False
     def fake_run(cmd):
         if cmd[:2] == ("lake", "build"):
@@ -784,33 +801,31 @@ def test_deny_proofs_axioms_flag_not_checked_when_false(tmp_path, monkeypatch):
         return FakeResult(0, "my_axiom\n", "")
     p = write_tree(tmp_path, n)
     monkeypatch.setattr(lean_check, "_default_run_cmd", lambda c: fake_run(c))
-    res = lean_check.verify_node(p, n["id"])
+    res = lean_check.verify_node(p, n["id"], toolchain_path=lean_toolchain_path)
     assert "no_axioms" in res["failed_steps"]
 
 
-def test_lock_mismatch_fails(tmp_path, monkeypatch):
-    n = verified_node()
+def test_lock_mismatch_fails(tmp_path, monkeypatch, repo_lock, lean_toolchain_path):
+    n = verified_node(repo_lock)
     n["lean_binding"]["lock"]["toolchain"] = "wrong"
-    toolchain = tmp_path / "lean-toolchain"
-    toolchain.write_text("leanprover/lean4:v4.31.0-rc1", encoding="utf-8")
     def fake_run(cmd):
         if cmd[:2] == ("lake", "build"):
             return FakeResult(0, "", "")
         return FakeResult(0, "Nat.add_comm : ...\npropext\n", "")
     p = write_tree(tmp_path, n)
     monkeypatch.setattr(lean_check, "_default_run_cmd", lambda c: fake_run(c))
-    res = lean_check.verify_node(p, n["id"], toolchain_path=str(toolchain))
+    res = lean_check.verify_node(p, n["id"], toolchain_path=lean_toolchain_path)
     assert "lock" in res["failed_steps"]
 
 
-def test_verify_writes_back_fields_on_pass(tmp_path, monkeypatch):
+def test_verify_writes_back_fields_on_pass(tmp_path, monkeypatch, repo_lock, lean_toolchain_path):
     def fake_run(cmd):
         if cmd[:2] == ("lake", "build"):
             return FakeResult(0, "", "")
         return FakeResult(0, "Nat.add_comm : ...\npropext\n", "")
-    p = write_tree(tmp_path, verified_node())
+    p = write_tree(tmp_path, verified_node(repo_lock))
     monkeypatch.setattr(lean_check, "_default_run_cmd", lambda c: fake_run(c))
-    lean_check.verify_node(p, "urn:m3:node:ok")
+    lean_check.verify_node(p, "urn:m3:node:ok", toolchain_path=lean_toolchain_path)
     with open(p, encoding="utf-8") as fh:
         tree = json.load(fh)
     assert tree["nodes"][0]["lean_binding"]["verified"] is True
@@ -820,7 +835,7 @@ def test_verify_writes_back_fields_on_pass(tmp_path, monkeypatch):
 
 - [ ] **Step 3: 运行测试确认失败**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_lean_check.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests/test_lean_check.py -v`
 Expected: FAIL（`ModuleNotFoundError: lean_check`）
 
 - [ ] **Step 4: 写实现**
@@ -983,7 +998,7 @@ if __name__ == "__main__":
 
 - [ ] **Step 5: 运行测试确认通过**
 
-Run: `cd skills/math-search && python3 -m pytest tests/test_lean_check.py -v`
+Run: `cd /Users/alexyu/Documents/ChatGPT/math && python3 -m pytest skills/math-search/tests/test_lean_check.py -v`
 Expected: 全部 passed
 
 - [ ] **Step 6: Commit**
@@ -1140,7 +1155,9 @@ def gate(tree_path: str, node_id: str, run_lean=None) -> dict:
             node["audit"]["audit_log"].append(f"gate -> failed（{node.get('type')}）")
             with open(tree_path, "w", encoding="utf-8") as fh:
                 json.dump(tree, fh, ensure_ascii=False, indent=2)
-        return {"status": node["status"], "reasons": [f"{node.get('type')}，不强制 Lean 核验"]}
+        reason = "反例，不强制 Lean 核验" if node.get("type") == "counterexample" else \
+                 "no-go 反证，不强制 Lean 核验"
+        return {"status": node["status"], "reasons": [reason]}
 
     reasons = _why_not_ready(node)
     if reasons:
@@ -1505,18 +1522,23 @@ def mk_tree(outdir, nodes):
     return str(p)
 
 
-def test_status_lists_eligible_and_excluded(tmp_path):
+def test_status_lists_eligible_and_excluded(tmp_path, monkeypatch):
     tree_path = mk_tree(tmp_path, [success_node(), failing_node()])
+    monkeypatch.setattr(upload_proofs, "_lean_verify_ok", lambda t, n: True)
     st = upload_proofs.status(tree_path)
     assert "urn:m3:node:s" in [n["id"] for n in st["eligible"]]
     assert "urn:m3:node:f" in [n["id"] for n in st["excluded"]]
+
+
+def _arch_root(tmp_path):
+    return tmp_path / "uploads" / "urn:m3:tree:test"
 
 
 def test_upload_creates_archive_layout(tmp_path, monkeypatch):
     tree_path = mk_tree(tmp_path, [success_node()])
     monkeypatch.setattr(upload_proofs, "_lean_verify_ok", lambda t, n: True)
     upload_proofs.upload(tree_path, out_root=str(tmp_path / "uploads"))
-    arch_root = tmp_path / "uploads" / "urn:m3:tree:test"
+    arch_root = _arch_root(tmp_path)
     assert (arch_root / "manifest.json").exists()
     assert (arch_root / "README.md").exists()
     proof_dir = arch_root / "proofs" / "urn:m3:node:s"
@@ -1528,7 +1550,7 @@ def test_upload_rejects_unverified(tmp_path, monkeypatch):
     tree_path = mk_tree(tmp_path, [failing_node()])
     monkeypatch.setattr(upload_proofs, "_lean_verify_ok", lambda t, n: True)
     upload_proofs.upload(tree_path, out_root=str(tmp_path / "uploads"))
-    arch_root = tmp_path / "uploads" / "urn:m3:tree:test"
+    arch_root = _arch_root(tmp_path)
     proofs = arch_root / "proofs"
     entries = list(proofs.iterdir()) if proofs.exists() else []
     assert entries == []
@@ -1652,8 +1674,8 @@ def upload(tree_path, out_root="output/uploads"):
         (node_dir / "run.sh").chmod(0o755)
         (node_dir / "lock.json").write_text(json.dumps(b["lock"], ensure_ascii=False, indent=2), encoding="utf-8")
 
-        from lean_check import verify_node
-        ver = verify_node(tree_path, node["id"])
+        # verify.json 使用同一可注入核验入口（生产=真实 lean_check，测试=monkeypatch）
+        ver = {"verified": _lean_verify_ok(tree_path, node)}
         (node_dir / "verify.json").write_text(json.dumps(ver, ensure_ascii=False, indent=2), encoding="utf-8")
 
         node["uploaded_at"] = _now_iso()
@@ -1839,7 +1861,7 @@ HTML_TEMPLATE = """<!doctype html>
   <button id="f-invention">模式三</button>
 </div>
 <div id="tree"></div>
-<div class="legend">绿=success 红=failed 灰=withdrawn 黄=in_progress 蓝=superseded
+<div class="legend">绿=success 红=failed 灰=withdrawn 黄=in_progress(实心=未过L1, 空心=unverified_claim-B) 蓝=superseded
  · 方=certificate 圆=假设 菱=no-go/反例<br>失败路径默认可见</div>
 <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <script>
@@ -1880,10 +1902,25 @@ function render(){
     if(shown.mode && n.mode !== shown.mode) return false;
     return true;
   });
-  // 简易分层布局：按 parent_ids 深度
+  // 简易分层布局：先给全部节点分配深度（带父节点也需有位置）
   const depth = new Map();
-  function d(n, k){ if(depth.has(n.id)) return; depth.set(n.id, k); (n.parent_ids||[]).forEach(p => { const pp = byId.get(p); if(pp) d(pp, k+1); }); }
-  view.filter(n => !(n.parent_ids||[]).length).forEach(n => d(n, 0));
+  function assign(n, k){
+    if(depth.has(n.id)) { depth.set(n.id, Math.min(depth.get(n.id), k)); return; }
+    depth.set(n.id, k);
+    (n.parent_ids||[]).forEach(p => { const pp = byId.get(p); if(pp) assign(pp, k+1); });
+  }
+  // 从 view 中的无父节点开始，逐层向下：这里 parent_ids 指向上级，
+  // 因此先对每个无父节点给深度 0，再对带父节点用父深度+1。
+  view.filter(n => !(n.parent_ids||[]).length).forEach(n => { depth.set(n.id, 0); });
+  // 带父节点的深度 = 父深度 + 1（父可能在 view 外，用 byId 查）
+  function depthOf(n){
+    if(depth.has(n.id)) return depth.get(n.id);
+    const ps = (n.parent_ids||[]).map(pid => byId.get(pid)).filter(Boolean);
+    const d = ps.length ? Math.max(...ps.map(depthOf)) + 1 : 0;
+    depth.set(n.id, d);
+    return d;
+  }
+  view.forEach(n => depthOf(n));
   const placed = new Map();
   const layers = new Map();
   for(const [id, dep] of depth){ if(!layers.has(dep)) layers.set(dep, []); layers.get(dep).push(byId.get(id)); }
@@ -1898,7 +1935,8 @@ function render(){
       .attr('stroke','#cfd8ea').attr('stroke-width',1.5);
   }
   for(const n of view){
-    const pos = placed.get(n.id); if(!pos) return;
+    const pos = placed.get(n.id);
+    if(!pos) continue;  // 无位置跳过而非中断整个渲染
     const grp = g.append('g').attr('class','node').attr('transform',`translate(${pos.x},${pos.y})`);
     const path = d3.symbol().type(shapeSym(n)).size(120)();
     grp.append('path').attr('d', path).attr('fill', color(n)).attr('stroke', stroke(n))
@@ -2374,12 +2412,19 @@ def ok_binding():
 
 
 def test_e2e_pipeline(tmp_path, monkeypatch):
+    # 建立真实存在的 lean 文件，供上传复制 proof.lean
+    lean_dir = tmp_path / "lean"
+    lean_dir.mkdir(exist_ok=True)
+    (lean_dir / "Foo.lean").write_text("theorem add_comm : True := by trivial\n", encoding="utf-8")
+    ok = ok_binding()
+    ok["file"] = str(lean_dir / "Foo.lean")
+
     tree = new_tree(root="urn:m3:tree:e2e", target="综合演练", obstacle_card_ref="c.md")
     solved = new_node(node_id="urn:m3:node:s", type="certificate", mode="computation", claim="已解决")
     solved["status"] = "success"
     solved["verification_level"] = "V1"
     solved["audit"] = {"L1_passed": True, "L2_passed": True, "audit_log": []}
-    solved["lean_binding"] = ok_binding()
+    solved["lean_binding"] = ok
 
     nog = new_node(node_id="urn:m3:node:g", type="no_go", mode="invention", claim="方法X被证排除")
     nog["status"] = "failed"
@@ -2395,7 +2440,7 @@ def test_e2e_pipeline(tmp_path, monkeypatch):
     for cid in ["urn:m3:node:s", "urn:m3:node:g", "urn:m3:node:o"]:
         assert cid in html
 
-    # 上传：仅成功节点
+    # 上传：仅成功节点（目录名 `:` 已替换为 `_`，与实现一致）
     monkeypatch.setattr(upload_proofs, "_lean_verify_ok", lambda t, n: True)
     upload_proofs.upload(str(tree_path), out_root=str(tmp_path / "uploads"))
     with open(tree_path, encoding="utf-8") as fh:
