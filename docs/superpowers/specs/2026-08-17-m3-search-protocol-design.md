@@ -12,7 +12,7 @@
 1. **探索树是唯一真实来源** — 所有搜索活动写入一棵 append-only 的树，报告/可视化/导出均从树派生。
 2. **状态是派生的，不是声明的** — agent 写入证据；`success` 状态只有 Lean 核验（或等价的机器验证）通过才派生。作者不能直接标记 claim 为成功。
 3. **负面结果是一等贡献** — 失败、撤回、no-go、反例节点永久保留，不可删除，只可追加修订。防止"事后诸葛"和重复死路。
-4. **发现级必须可复现** — 任何标为"发现"的节点必须关联可执行的 Lean 源文件 + 运行命令 + 依赖锁定（可执行研究包）。
+4. **发现级必须可复现** — 任何标为"发现"的节点必须关联可执行的 Lean 源文件 + 运行命令 + 依赖锁定（`lean_binding.lock`：toolchain 内容 + lake-manifest 引用，见 §2.1）。
 5. **三模式独立启停** — 计算搜索、工具发现、新数学发明各自有完整生命周期和独立预算。
 6. **预算与交互可配置** — 预算自动追踪；交互可为"节点确认型"或"完全自主型"。
 7. **成功判据 = 过程质量** — 框架的成功按协议遵循、树完整性、预算纪律、审计质量判定，不以解决猜想为判据。
@@ -51,22 +51,33 @@ agent 动作 ──> 探索树(append-only JSON) ──> 状态派生引擎 ─�
 
 ## 2. 探索树数据模式 (`tree_schema.json`)
 
-### 2.1 节点
+### 2.1 节点（存储形态）
+
+存储 JSON 是派生视图的快照；**字段归属见 §2.3**。状态枚举是最小存储集；`proposed`/`unverified_claim`/`candidate` 是派生视图标签，不存储（见 §2.2）。
 
 ```json
 {
-  "$schema": "nodes",
   "root": "urn:m3:tree:<session-id>",
+  "session": {
+    "target": "<问题陈述>",
+    "obstacle_card_ref": "<obstacle_card.md 路径或摘要>",
+    "interaction_policy": "confirm_at_nodes | autonomous",
+    "budgets": {
+      "computation": {"units": "steps | seconds | calls", "cap": 1000},
+      "tool_discovery": {"units": "steps", "cap": 400},
+      "invention": {"units": "seconds", "cap": 3600}
+    }
+  },
   "nodes": [
     {
       "id": "urn:m3:node:<uuid>",
       "revision_of": null | "<node-id>",        // 修订/撤回链，append-only
       "parent_ids": ["urn:m3:node:<parent>"],
-      "type": "hypothesis | tool_candidate | certificate | no_go | counterexample | dead_end",
+      "type": "hypothesis | tool_candidate | certificate | no_go | counterexample",
       "mode": "computation | tool_discovery | invention",
-      "status": "in_progress | success | failed | withdrawn | superseded",
+      "status": "in_progress | success | failed | withdrawn | superseded",  // 仅引擎写入（§2.3）
       "obstacle": {
-        "fingerprint": "<障碍指纹文本>",
+        "fingerprint": "<障碍指纹（定义见 §2.4）>",
         "excluded_methods": ["<已排除方法类>"],
         "required_coupling": "<必须使用的耦合>"
       },
@@ -76,17 +87,22 @@ agent 动作 ──> 探索树(append-only JSON) ──> 状态派生引擎 ─�
       "lean_binding": {
         "theorem": "<定理名>",
         "file": "lean/<file>.lean",
-        "run": "lake build lean/<file>.lean",
-        "verified": true,
-        "verified_at": "<ISO8601>"
+        "run": "lake build lean/<file>.lean && lean_check.py --theorem <定理名> lean/<file>.lean",
+        "deny_proofs_axioms": true,
+        "lock": {
+          "toolchain": "<lean-toolchain 内容>",
+          "lake_manifest_ref": "<lake-manifest.json 相对路径或摘要>"
+        },
+        "verified": false,        // 引擎字段（§2.3）
+        "verified_at": null
       },
-      "verification_level": "V0 | V1 | V2 | V3 | V4",
+      "verification_level": "V0 | V1 | V2 | V3 | V4",   // 引擎字段，详见 §2.4
       "audit": {
-        "L1_passed": true,
+        "L1_passed": false,
         "L2_passed": false,
         "audit_log": ["<审计事件>"]
       },
-      "budget_used": 0.42,
+      "budget_used": {"steps": 7, "seconds": 940, "calls": 0},
       "exported_event_ids": ["urn:pw:event:<uuid>"],
       "logs": ["<ISO8601>: <事件>"]
     }
@@ -94,25 +110,86 @@ agent 动作 ──> 探索树(append-only JSON) ──> 状态派生引擎 ─�
 }
 ```
 
+`verification_level` 含义（v0.1 通常只用到 V0/V1）：
+- `V0` 已解析：节点符合 schema，声明有效，可无 Lean 绑定
+- `V1` 可复现：有完整 `lean_binding`（含锁定），Lean 核验通过
+- `V2` 独立可执行：不同会话重跑 `lean_binding.run` 成功
+- `V3` 独立复现：独立 agent 重推并满足独立性披露后一致
+- `V4` 多元佐证：多个独立复现且材料多样（模型/代码/站点）
+
 ### 2.2 状态派生规则（改自 Proofweave 的"状态是派生的"原则）
 
-| 观察到的证据 | 派生状态 |
-|---|---|
-| 节点已创建，等待工作 | `proposed` |
-| agent 写了 claim/result，尚无核验 | `in_progress`（锁在 L1 之前） |
-| 通过 L1 合理性审计，无 Lean 绑定 | `unverified_claim`（不可升为 success） |
-| 有 Lean 绑定且 `lean_check.py` 返回 verified | `success`（V1） |
-| 独立重算/复现通过 | V2-V3 升级 |
-| 出现反例/矛盾 | `failed` 或 `withdrawn`（保留历史） |
+**存储的 `status` 只有五个**：`in_progress | success | failed | withdrawn | superseded`。派生引擎按证据计算；`proposed`、`unverified_claim`、`candidate` 是导出视图上的展示标签，不落盘。
 
-**晋升门（核心约束）**：节点从 `in_progress`/`failed` 升为 `success` 的唯一路径：
+| 观察到的证据 | 存储 status | 派生视图标签 |
+|---|---|---|
+| 节点已创建，尚无 claim | `in_progress` | `proposed` |
+| 有 claim，未过 L1 | `in_progress` | `unverified_claim`（阶段 A） |
+| 过 L1，无 Lean 绑定 | `in_progress` | `unverified_claim`（阶段 B，报告中列示） |
+| 过 L1 + Lean verified | `success` | `success` (V1) |
+| 独立重算/复现通过 | `success` | V2/V3 升级 |
+| 出现反例/矛盾 | `failed` | `failed`（保留历史） |
+| 被修订节点取代 | `superseded` | `superseded`（原节点不可再变） |
+| agent 明示放弃 | `withdrawn` | `withdrawn`（保留原因） |
 
-1. L1 审计通过
-2. `lean_binding` 存在
-3. `lean_check.py` 实际核验返回 verified
-4. （可选，V2+）独立重验通过
+**晋升门（核心约束）**：一个**修订后的新节点**升为 `success` 的唯一路径（append-only，不做原地变异；`failed`/`withdrawn` 节点需通过 `revision_of` 生成修订节点后走同一门）：
 
-缺任一 → 状态锁在 `in_progress`，报告中标为"未验证声明"。
+1. L1 审计通过（`audit.L1_passed=true`）
+2. `lean_binding` 存在且含 `lock`
+3. `lean_check.py` 的"文件编译 + 名为定理存在且非 axiom"双重核验返回 verified —— 此步即 L2 审计（Lean 核验），通过后引擎同时置 `audit.L2_passed=true`
+4. （可选，V3+）独立复现通过
+
+**L2 是晋升门的硬性要求**：`audit.L2_passed=false` 的节点即使满足 1-3 也不能升级；凡第 3 步通过，引擎必须置 `L2_passed=true`，两者不得出现不一致。
+
+缺任一 → 该修订节点保持存储 `in_progress`，报告中列入"未验证声明"清单，并附缺失原因。
+
+### 2.3 字段归属：证据 vs 派生
+
+半智能化框架不自证：谁写哪个字段必须固定。
+
+**agent 授权写入（证据字段）**：`id`、`revision_of`、`claim`、`result`、`falsification`、`obstacle`、`type`、`mode`、`parent_ids`，以及 `lean_binding` 内的 `theorem/file/run/deny_proofs_axioms/lock`。写入即产生新的 append 事件，历史节点不变。
+
+**引擎独占写入（派生字段）**：`status`、`lean_binding.verified`、`lean_binding.verified_at`、`verification_level`、`audit.L1_passed/L2_passed`、`budget_used`、`exported_event_ids`。引擎仅在运行核验/审计程序后更新；agent 直接改这些字段视为协议违规（记录 audit_log 事件）。
+
+**共享写入**：`logs`（agent 追加事件，引擎追加审计事件）。追加式，不覆盖。
+
+**冲突处理**：若 agent 尝试写 `status` 或 `verified`，引擎拒绝并追加 `logs` 事件；派生状态一律以引擎最后计算结果为准。存储 JSON 是所有已接受事件的汇总快照；v0.1 单 agent 场景下，树文件即权威事件记录，不另设事件日志存储。
+
+**`deny_proofs_axioms` 语义**：该字段为 agent 声明的自证标准，但**发现级节点强制为 true**——引擎在 L2 核验时无论该字段值如何，均执行 §7.3 第 3 步的 axiom/sorry 检查；该检查只排除定理定义体本身，若定理依赖的传递链中含 axiom（如 `by simpa using axiom_name`），则由 §7.3 的 `#print` 输出中"依赖列表"复核，发现依赖 axiom 一律不通过。字段值 `false` 仅在非发现级节点上允许，且不改变引擎检查行为。
+
+### 2.4 障碍卡片与指纹（§3 共享输入）
+
+`obstacle_card.md` 是三种模式共用的启动输入，字段：
+
+```text
+# 障碍卡片 <card-id>
+- 目标: <目标命题>
+- 障碍陈述: <当前无法越过的最小命题>
+- 指纹: <指纹 = 该最小命题的可验证结构签名：量词结构(点态/存在/全称) + 要求对象(因子/和集/相对代数性) + 必须使用的耦合>
+- 已排除方法类: <逐个列出并附证明来源(note)>
+- 候选开放类: <未被排除、仍有希望的方向>
+- 参考节点: <相关探索树节点 id>
+```
+
+**指纹推导规则**：指纹不由自由文本生成，而是由 agent 从障碍陈述中提取三要素（量词结构、对象类、耦合），每要素取规范短语；两障碍指纹相同 ⇔ 两障碍可判为同一结构类（用于跨问题复用工具）。v0.1 的三要素规范短语词汇表（允许扩展，扩展需记录在障碍卡片中）：
+
+```text
+量词结构: 点态 | 存在 | 全称 | 逐层 | 密度型
+对象类: 因子 | 和集 | 盒 | 相对代数性 | 绝对超越性 | 整除性 | 计数
+耦合: 跨层 | 自适应 | 无耦合 | 符号保持
+```
+
+### 2.5 verification_level 分层（v0.1 范围）
+
+| 级别 | 含义 | v0.1 是否实现 |
+|---|---|---|
+| V0 | 节点解析通过（schema 校验，可无绑定） | 是 |
+| V1 | `lean_binding` 完整且核验通过 | 是（晋升门） |
+| V2 | 独立会话重跑 run 成功 | 是（lean_check 支持） |
+| V3 | 独立复现 + 独立性披露一致 | v0.2 待决 |
+| V4 | 多元佐证（模型/代码/站点多样） | v0.2 待决 |
+
+L3 审计的"突破级"判定标准本身 v0.2 细化（§4 已定义触发/动作/效果）；v0.1 中 L3 可触发，按§4 执行。
 
 ---
 
@@ -159,7 +236,7 @@ agent 动作 ──> 探索树(append-only JSON) ──> 状态派生引擎 ─�
 - 先分析"为什么现有工具失败"（引用 no-go 节点）
 - 生成机制候选 → 先在小例子上验证一致性（一致性失败即废弃候选）
 - 一致性通过 → 尝试证明
-- 未证明的机制只能标记 `candidate`，绝不声称定理
+- 未证明的机制用 `hypothesis` 类型 + `in_progress` 状态存储，派生视图标签为 `candidate`（不落盘，见 §2.2），绝不声称定理
 - 候选升级为定理必须过晋升门
 
 ---
@@ -168,7 +245,7 @@ agent 动作 ──> 探索树(append-only JSON) ──> 状态派生引擎 ─�
 
 | 级别 | 触发 | 动作 | 通过后状态 |
 |---|---|---|---|
-| L1 合理性 | 任何新结论 | 反向检查、边界测试、小窗口对照 | `unverified_claim` |
+| L1 合理性 | 任何新结论 | 反向检查、边界测试、小窗口对照 | `audit.L1_passed=true`（存储仍为 in_progress，视图标签 unverified_claim-B） |
 | L2 独立验证 | 候选升级为"发现" | Lean 核验 / 独立重算 / 不同实现交叉 | `success` (V1) |
 | L3 完整审计 | 声称突破/证明 | 完整审查 + 用户确认 | 标记"突破级"，需用户签字 |
 
@@ -212,7 +289,8 @@ viz/<session>.html                   # D3 交互式可视化（单文件）
 
 ### 7.2 D3 可视化特性 (`build_tree.py`)
 
-- 节点颜色：绿=success，红=failed，灰=withdrawn，黄=in_progress
+- 节点颜色：绿=success，红=failed，灰=withdrawn，黄=in_progress，蓝=superseded（虚线边框）
+- `unverified_claim` 视图：in_progress 节点中未过 L1 的用实心黄，过 L1 但无 Lean 绑定的用空心黄（报告中两类分开列示）
 - 节点形状：方形=certificate，圆圈=假设/候选，菱形=no-go/反例
 - 点击展开详情（claim/result/lean_binding/audit）
 - Lean 绑定徽章：绿色徽章 + 跳转源文件
@@ -221,19 +299,29 @@ viz/<session>.html                   # D3 交互式可视化（单文件）
 
 ### 7.3 Lean 复现 (`lean_check.py`)
 
+`lake build` 只证明文件编译；要证明"定理已证明"必须做双重核验：
+
 ```sh
-# 复现节点 <id> 的结论
+# 复现节点 <id> 的结论（双重核验）
 lean_check.py verify <tree.json> <node-id>
-# 等价于：从节点提取 lean_binding.run 并执行，返回 verified true/false
 ```
 
-失败/未核验 → `lean_binding.verified=false`，节点锁在 `in_progress`。
+核验程序固定执行以下步骤，任一失败 → `verified=false`，节点锁在 `in_progress`：
+
+1. **编译**：执行 `lake build lean/<file>.lean`（等价于 `lean_binding.run` 的编译部分），退出码 0 才继续。
+2. **定理存在性**：在编译后的环境中执行 `#check <theorem>` 探针（`lean --run` 或注入探针文件），确认 `<theorem>` 声明存在。
+3. **非公理检查**：对定理声明执行 `#print <theorem>` 输出，确认其定义体不是 `axiom`（`deny_proofs_axioms: true` 强制要求；若发现是 `axiom` 或 `sorry`，即使编译通过也判定未验证）。
+4. **锁定核对**：校验 `lean_binding.lock.toolchain` 与当前 `lean-toolchain` 内容一致，`lake_manifest_ref` 指向的文件存在（内容摘要可选）。
+
+核验结果（通过/失败 + 时间戳）由引擎写入 `lean_binding.verified/verified_at`，进入 audit_log。V2 由不同会话重跑同一 `run` 得到，记为独立执行证据。
 
 ---
 
 ## 8. Proofweave 集成（协议兼容导出）
 
 M3 本地运行，不实现 Proofweave 协议本身。导出器 `export_pw.py` 将探索树转为兼容事件流，供后续接入 Proofweave 节点。
+
+**权威参考**：Proofweave 协议文档与其 `proofweave-core.schema.json` 是导出正确性的外部基准。v0.1 交付时需将这两份文件（或等价的公开 URL）纳入仓库（如 `references/proofweave-protocol-v0.1.md` 与 `references/proofweave-core.schema.json`）——它们不是可选附件，而是导出器测试的固定基准。
 
 ### 预演映射
 
@@ -256,13 +344,13 @@ M3 本地运行，不实现 Proofweave 协议本身。导出器 `export_pw.py` �
 
 ## 9. 框架自身验证策略
 
-1. **Schema 校验**：生成树用 JSON Schema 严格校验（`tree_schema.json`）。
+1. **Schema 校验**：生成树用 JSON Schema 严格校验（`tree_schema.json`，v0.1 交付物）。
 2. **协议演练测试**：三个合成问题（一个可解、一个已知 no-go、一个开放）跑完整会话，检查：
    - 树完整性（全节点保留、修订链正确）
-   - 晋升门执行（无 Lean 绑定的节点不能成为 success）
-   - 预算纪律（无超支、无无限循环）
-   - 可视化完整性（全节点出现，失败可见）
-   - 导出正确性（事件流符合映射表）
+   - 晋升门执行（无 Lean 绑定或定理为 axiom 的节点不能成为 success；`L2_passed` 与 verified 一致）
+   - 预算纪律（无超支、无无限循环，`budget_used` 单位明确且与 `budgets.units` 对齐）
+   - 可视化完整性（全节点出现，失败可见，superseded 有独立样式）
+   - 导出正确性（事件流字段映射对照 `references/` 中的 Proofweave 协议文档与其 `proofweave-core.schema.json` 校验，不以自身映射表为唯一依据）
 3. **回归防线**：每次会话结束重新校验 schema + 跑演练测试。
 
 ---
@@ -284,5 +372,5 @@ M3 本地运行，不实现 Proofweave 协议本身。导出器 `export_pw.py` �
 
 **待决**（v0.2 / 接入期）：
 - Proofweave 签名/哈希/节点接入的具体实现
-- V2+ 独立复现的"独立性"判定标准
-- L3 审计的"突破级"定义细则
+- V3+ 独立复现的"独立性"判定标准
+- L3 审计的"突破级"定义细则（v0.1 中 L3 可触发，按 §4 执行）
