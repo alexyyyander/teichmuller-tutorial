@@ -1714,7 +1714,7 @@ def main(argv=None):
         print(json.dumps(upload(args.tree, out_root=args.out_root), ensure_ascii=False, indent=2))
     elif args.cmd == "verify":
         arch = Path(args.archive)
-        results = [{"node": vj.parent.name, "verified": json.loads(vj.read_text()).get("verified") is not None}
+        results = [{"node": vj.parent.name, "verified": bool(json.loads(vj.read_text()).get("verified"))}
                    for vj in arch.glob("proofs/*/verify.json")]
         print(json.dumps(results, ensure_ascii=False, indent=2))
 
@@ -2516,4 +2516,5 @@ git commit -m "test: 端到端协议演练（建树/核验/可视化/上传/导�
 - [ ] 6 个脚本均有 CLI：tree_lib / lean_check / audit_gate / import_workspace / upload_proofs / export_pw
 - [ ] `build_tree.py` 输出单文件 HTML 可直接打开查看
 - [ ] 试点 `erdos_straus/research_log.md` 能 scan/draft 出草稿树
+- [ ] `upload_proofs.py verify` 子命令按 `verify.json` 的 `verified` 布尔值判断（非仅字段存在）
 - [ ] 全部提交记录存在，spec/plan 均收在 docs/
