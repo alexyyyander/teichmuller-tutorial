@@ -31,9 +31,12 @@ skills/math-search/
 │   └── mode3-invention.md            # 模式三：新数学发明
 ├── orchestrator/
 │   ├── build_tree.py                 # 探索树 JSON → D3 单文件 HTML 可视化
+│   ├── import_workspace.py           # ★ 现有工作（日志/Lean）→ 探索树导入器
+│   ├── upload_proofs.py              # ★ 已验证节点 → 本地可复现归档上传器
 │   ├── export_pw.py                  # 探索树 → Proofweave 兼容事件流
 │   ├── tree_schema.json              # 探索树数据模式（JSON Schema）
-│   └── lean_check.py                 # Lean 复现命令封装 + 核验状态查询
+│   ├── lean_check.py                 # Lean 复现命令封装 + 核验状态查询
+│   └── audit_gate.py                 # ★ 审计门/状态派生引擎（L1/L2/晋升门）
 └── templates/
     ├── obstacle_card.md              # 障碍卡片模板
     └── report_template.md            # 强制研究报告模板
@@ -42,9 +45,12 @@ skills/math-search/
 ### 数据流
 
 ```text
-agent 动作 ──> 探索树(append-only JSON) ──> 状态派生引擎 ──> 报告 / 可视化 / Proofweave 导出
-                    ▲                              │
-                    └────── 新证据/修订 ─────────────┘
+现有工作 ──import_workspace.py──> 探索树(append-only JSON)
+agent 动作 ────────────────────> 探索树(append-only JSON)
+探索树 ──> 状态派生引擎(audit_gate.py) ──> 报告 / D3 可视化 / Proofweave 导出
+                                          └─> upload_proofs.py ──> output/uploads/ 归档
+                     ▲                              │
+                     └────── 新证据/修订 ─────────────┘
 ```
 
 ---
@@ -73,6 +79,8 @@ agent 动作 ──> 探索树(append-only JSON) ──> 状态派生引擎 ─�
       "id": "urn:m3:node:<uuid>",
       "revision_of": null | "<node-id>",        // 修订/撤回链，append-only
       "parent_ids": ["urn:m3:node:<parent>"],
+      "origin": "search | legacy",              // legacy=导入的历史工作
+      "source_ref": null | "<文档路径+小节 | lean 文件:定理行号>",   // legacy 节点必填
       "type": "hypothesis | tool_candidate | certificate | no_go | counterexample",
       "mode": "computation | tool_discovery | invention",
       "status": "in_progress | success | failed | withdrawn | superseded",  // 仅引擎写入（§2.3）
@@ -149,7 +157,7 @@ agent 动作 ──> 探索树(append-only JSON) ──> 状态派生引擎 ─�
 
 半智能化框架不自证：谁写哪个字段必须固定。
 
-**agent 授权写入（证据字段）**：`id`、`revision_of`、`claim`、`result`、`falsification`、`obstacle`、`type`、`mode`、`parent_ids`，以及 `lean_binding` 内的 `theorem/file/run/deny_proofs_axioms/lock`。写入即产生新的 append 事件，历史节点不变。
+**agent 授权写入（证据字段）**：`id`、`revision_of`、`origin`、`source_ref`、`claim`、`result`、`falsification`、`obstacle`、`type`、`mode`、`parent_ids`，以及 `lean_binding` 内的 `theorem/file/run/deny_proofs_axioms/lock`。写入即产生新的 append 事件，历史节点不变。
 
 **引擎独占写入（派生字段）**：`status`、`lean_binding.verified`、`lean_binding.verified_at`、`verification_level`、`audit.L1_passed/L2_passed`、`audit.audit_log`、`budget_used`、`exported_event_ids`。引擎仅在运行核验/审计程序后更新；agent 直接改这些字段视为协议违规（记录 audit_log 事件）。
 
@@ -346,6 +354,81 @@ M3 本地运行，不实现 Proofweave 协议本身。导出器 `export_pw.py` �
 
 ---
 
+## 8b. 现有工作导入与可证明内容上传
+
+### 8b.1 导入器 `import_workspace.py`
+
+**目标**：把既有数学工作（研究日志、Lean 定理文件）结构化导入探索树，作为新搜索的起点上下文。
+
+**实施方式**：自动解析 + 人工审核。单个试点先行（Erdős–Straus，其研究结构最完整），验证流程后扩展到其他方向。
+
+**解析来源**（试点）：
+- `erdos_straus/research_log.md`（按「##」小节目录提取）——各小节映射为 `hypothesis`/`certificate`/`no_go`/`counterexample` 节点
+- `lean/ErdosStraus.lean`、`ErdosStrausTail.lean`、`ErdosStrausNearQuarter.lean`——提取 `theorem`/`lemma` 声明名，绑定为 `certificate` 节点
+- 文档中明确标注为「反例」「局部」「未解决」「障碍」的小节 → `no_go`/`counterexample`/`hypothesis` 节点
+
+**导入流程**：
+```sh
+import_workspace.py scan    # 扫描来源，生成候选节点清单（不写树）
+import_workspace.py draft   # 生成草稿树（待审）
+# 人工审核后：
+import_workspace.py commit <draft-tree>  # 写入正式探索树
+```
+
+**扫描规则（试点）**：研究日志中以下模式分别映射为节点类型：
+- `Lean 定理名`（反引号包裹）→ `certificate`
+- 「反例」「回归」「counterexample」「失败」→ `counterexample`
+- 「no-go」「不被整除」「不可能」「排除」→ `no_go`
+- 「必要条件」「尚未」「开放」「无法」「障碍」→ `hypothesis`（含说明性 result）
+- 「已证明」「机器核验」「formalize」「machine-checked」→ `certificate`（附带来源文档引用）
+
+每个导入节点自动继承 `parent_ids`（父子按原文档章节层级），写入 `source_ref`（文档路径+小节目录），标记 `origin: "legacy"` 以便可视化/筛选区分，并填 `obstacle` 三要素（§2.4 词汇表）。
+
+**导入节点的验证门槛（同晋升门）**：导入的历史工作不继承原文档的"成功"状态。规则：
+- 有可核验的 Lean 绑定（`lean/` 中真实存在的定理名）→ `in_progress`，运行 `lean_check.py` 核验，通过 → `success`，对应 `verification_level` 至少 V1
+- 无 Lean 绑定或绑定核验失败 → 保持 `in_progress`（视图标签 `unverified_claim-B`），列入报告"未验证声明"
+- 明确标为反例/no-go 的节点 → 直接 `failed`（附原文证据），即使无 Lean 绑定也记录，但**不得**升为 success
+
+`origin: "legacy"` 的节点在编辑器与可视化中统一加「遗留」标签，不与新搜索节点混淆，但共享同一状态派生与晋升门。
+
+### 8b.2 上传器 `upload_proofs.py`
+
+**目标**：把探索树的"可证明内容"（成功节点）归档到本地可复现目录，保证任何人可离线查看、重跑、审计。
+
+**过滤标准（仅已验证节点）**：只有 `status=success` 且满足全部条件的节点可上传：
+- `audit.L1_passed=true` 且 `audit.L2_passed=true`
+- `lean_binding` 完整（theorem/file/run/lock）
+- `lean_check.py verify` 当前返回 verified（上传前重新核验，过期即拒传）
+- `verification_level >= V1`
+
+失败、撤回、`in_progress`、无 Lean 绑定的节点一律不上传——它们只留在探索树中供查看。这保证"上传内容可证明"：目录里的每个条目都能被独立重跑验证。
+
+**上传布局**：
+```text
+output/uploads/<tree-id>/
+├── README.md                       # 目录索引：节点清单、核验状态、复现说明
+├── proofs/
+│   ├── <node-id>/                  # 每个成功节点
+│   │   ├── claim.md                # 声明 + 障碍指纹 + 证据
+│   │   ├── proof.lean              # Lean 源文件（快照副本）
+│   │   ├── run.sh                  # lean_binding.run 复现命令
+│   │   ├── lock.json               # 锁定（toolchain/lake-manifest）
+│   │   └── verify.json             # lean_check.py 核验结果（时间戳+指纹）
+├── tree-subgraph.json              # 成功节点及其事故父节点子图（失败上下文可查看）
+└── manifest.json                   # 上传清单：节点 id、定理名、摘要、时间
+```
+
+**上传流程**：
+```sh
+upload_proofs.py status     # 列出可上传/不可上传及原因
+upload_proofs.py upload <tree.json>  # 重新核验 → 写入 output/uploads/<tree-id>/
+upload_proofs.py verify <tree-id>    # 复核归档中所有 proof.lean 可重跑
+```
+
+**审计一致性**：上传前重新跑 `lean_check.py`；上传完成后生成 `verify.json` 存回树节点的 `exported_event_ids`（或新增 `uploaded_at` 时间戳字段）。归档内容再次变化时，原始探索树仍是权威——归档只是导出快照。
+
+---
+
 ## 9. 框架自身验证策略
 
 1. **Schema 校验**：生成树用 JSON Schema 严格校验（`tree_schema.json`，v0.1 交付物）。
@@ -355,6 +438,8 @@ M3 本地运行，不实现 Proofweave 协议本身。导出器 `export_pw.py` �
    - 预算纪律（无超支、无无限循环，`budget_used` 单位明确且与 `budgets.units` 对齐）
    - 可视化完整性（全节点出现，失败可见，superseded 有独立样式）
    - 导出正确性（事件流字段映射对照 `references/` 中的 Proofweave 协议文档与其 `proofweave-core.schema.json` 校验，不以自身映射表为唯一依据）
+   - **导入正确性（新增）**：用 `erdos_straus/` 真实文件跑 `import_workspace.py scan/draft/commit`，核对：(a) 节点数与文档小节数一致；(b) 反例/no-go 正确标记；(c) Lean 定理绑定名与 `lean/` 中真实声明一致；(d) 无 Lean 绑定节点不误升 success
+   - **上传正确性（新增）**：对一个合成 success 节点跑 `upload_proofs.py upload`，核对归档中 `proof.lean` 可复现、`verify.json` 与 `lean_check.py` 结果一致、非 success 节点未进入归档
 3. **回归防线**：每次会话结束重新校验 schema + 跑演练测试。
 
 ---
@@ -373,8 +458,11 @@ M3 本地运行，不实现 Proofweave 协议本身。导出器 `export_pw.py` �
 - 成功判据：过程质量
 - 审计：内置审计门
 - Proofweave：协议兼容导出层
+- 现有工作导入：自动解析+人工审核，试点（Erdős–Straus）先行，导入节点同过晋升门，标记 `origin:"legacy"`
+- 可证明内容上传：仅已验证节点（success + L1/L2 + Lean verified），上传本地可复现归档 `output/uploads/`
 
 **待决**（v0.2 / 接入期）：
 - Proofweave 签名/哈希/节点接入的具体实现
 - V3+ 独立复现的"独立性"判定标准
 - L3 审计的"突破级"定义细则（v0.1 中 L3 可触发，按 §4 执行）
+- 导入扩展到其他三方向的自动化程度（试点流程验证后定）
