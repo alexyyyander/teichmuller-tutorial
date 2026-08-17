@@ -96,7 +96,7 @@ agent 动作 ──> 探索树(append-only JSON) ──> 状态派生引擎 ─�
         "verified": false,        // 引擎字段（§2.3）
         "verified_at": null
       },
-      "verification_level": "V0 | V1 | V2 | V3 | V4",   // 引擎字段，详见 §2.4
+      "verification_level": "V0 | V1 | V2 | V3 | V4",   // 引擎字段，详见 §2.5
       "audit": {
         "L1_passed": false,
         "L2_passed": false,
@@ -129,10 +129,12 @@ agent 动作 ──> 探索树(append-only JSON) ──> 状态派生引擎 ─�
 | 过 L1 + Lean verified | `success` | `success` (V1) |
 | 独立重算/复现通过 | `success` | V2/V3 升级 |
 | 出现反例/矛盾 | `failed` | `failed`（保留历史） |
+| no_go 定理成立（该路线被证明不可能） | `failed` | `failed`（附 no-go 证明来源） |
+| counterexample 节点确认 | `failed` | `failed`（附反例数据） |
 | 被修订节点取代 | `superseded` | `superseded`（原节点不可再变） |
-| agent 明示放弃 | `withdrawn` | `withdrawn`（保留原因） |
+| agent 明示放弃（经 `logs` 事件） | `withdrawn` | `withdrawn`（保留原因） |
 
-**晋升门（核心约束）**：一个**修订后的新节点**升为 `success` 的唯一路径（append-only，不做原地变异；`failed`/`withdrawn` 节点需通过 `revision_of` 生成修订节点后走同一门）：
+**晋升门（核心约束）**：任何**新节点**（fresh）升为 `success` 的唯一路径（append-only，不做原地变异）；`failed`/`withdrawn` 节点需先经 `revision_of` 生成修订节点，修订节点走同一门：
 
 1. L1 审计通过（`audit.L1_passed=true`）
 2. `lean_binding` 存在且含 `lock`
@@ -149,13 +151,15 @@ agent 动作 ──> 探索树(append-only JSON) ──> 状态派生引擎 ─�
 
 **agent 授权写入（证据字段）**：`id`、`revision_of`、`claim`、`result`、`falsification`、`obstacle`、`type`、`mode`、`parent_ids`，以及 `lean_binding` 内的 `theorem/file/run/deny_proofs_axioms/lock`。写入即产生新的 append 事件，历史节点不变。
 
-**引擎独占写入（派生字段）**：`status`、`lean_binding.verified`、`lean_binding.verified_at`、`verification_level`、`audit.L1_passed/L2_passed`、`budget_used`、`exported_event_ids`。引擎仅在运行核验/审计程序后更新；agent 直接改这些字段视为协议违规（记录 audit_log 事件）。
+**引擎独占写入（派生字段）**：`status`、`lean_binding.verified`、`lean_binding.verified_at`、`verification_level`、`audit.L1_passed/L2_passed`、`audit.audit_log`、`budget_used`、`exported_event_ids`。引擎仅在运行核验/审计程序后更新；agent 直接改这些字段视为协议违规（记录 audit_log 事件）。
 
 **共享写入**：`logs`（agent 追加事件，引擎追加审计事件）。追加式，不覆盖。
 
+**放弃信号**：agent 不能在 `status` 上直接写 `withdrawn`。放弃通过向 `logs` 追加 `{"event":"withdraw_request","reason":"<原因>"}` 表达；引擎读到该事件后派生 `withdrawn` 状态并保留原因，原节点历史不变。
+
 **冲突处理**：若 agent 尝试写 `status` 或 `verified`，引擎拒绝并追加 `logs` 事件；派生状态一律以引擎最后计算结果为准。存储 JSON 是所有已接受事件的汇总快照；v0.1 单 agent 场景下，树文件即权威事件记录，不另设事件日志存储。
 
-**`deny_proofs_axioms` 语义**：该字段为 agent 声明的自证标准，但**发现级节点强制为 true**——引擎在 L2 核验时无论该字段值如何，均执行 §7.3 第 3 步的 axiom/sorry 检查；该检查只排除定理定义体本身，若定理依赖的传递链中含 axiom（如 `by simpa using axiom_name`），则由 §7.3 的 `#print` 输出中"依赖列表"复核，发现依赖 axiom 一律不通过。字段值 `false` 仅在非发现级节点上允许，且不改变引擎检查行为。
+**`deny_proofs_axioms` 语义**：该字段为 agent 声明的自证标准，但**发现级节点强制为 true**——引擎在 L2 核验时无论该字段值如何，均执行 §7.3 第 3 步的 `#print axioms` 检查；该检查排除定理定义体与证明传递链中任何 axiom/sorry 依赖。字段值 `false` 仅在非发现级节点上允许，且不改变引擎检查行为。
 
 ### 2.4 障碍卡片与指纹（§3 共享输入）
 
@@ -165,7 +169,7 @@ agent 动作 ──> 探索树(append-only JSON) ──> 状态派生引擎 ─�
 # 障碍卡片 <card-id>
 - 目标: <目标命题>
 - 障碍陈述: <当前无法越过的最小命题>
-- 指纹: <指纹 = 该最小命题的可验证结构签名：量词结构(点态/存在/全称) + 要求对象(因子/和集/相对代数性) + 必须使用的耦合>
+- 指纹: <指纹 = 该最小命题的可验证结构签名：量词结构 + 要求对象 + 必须使用的耦合（词汇表见下方"指纹推导规则"）>
 - 已排除方法类: <逐个列出并附证明来源(note)>
 - 候选开放类: <未被排除、仍有希望的方向>
 - 参考节点: <相关探索树节点 id>
@@ -246,8 +250,8 @@ L3 审计的"突破级"判定标准本身 v0.2 细化（§4 已定义触发/动�
 | 级别 | 触发 | 动作 | 通过后状态 |
 |---|---|---|---|
 | L1 合理性 | 任何新结论 | 反向检查、边界测试、小窗口对照 | `audit.L1_passed=true`（存储仍为 in_progress，视图标签 unverified_claim-B） |
-| L2 独立验证 | 候选升级为"发现" | Lean 核验 / 独立重算 / 不同实现交叉 | `success` (V1) |
-| L3 完整审计 | 声称突破/证明 | 完整审查 + 用户确认 | 标记"突破级"，需用户签字 |
+| L2 独立验证 | 候选升级为"发现" | 发现级节点强制 Lean 双重核验（§7.3）；独立重算/不同实现交叉仅作为补充证据（不替代 Lean） | `success` (V1) |
+| L3 完整审计 | 声称突破/证明 | 完整审查 + 用户确认；结论标记经 `audit_log` 事件记录 | 标记"突破级"，需用户签字 |
 
 审计记录写入 `audit.audit_log`，不可删除。
 
@@ -310,7 +314,7 @@ lean_check.py verify <tree.json> <node-id>
 
 1. **编译**：执行 `lake build lean/<file>.lean`（等价于 `lean_binding.run` 的编译部分），退出码 0 才继续。
 2. **定理存在性**：在编译后的环境中执行 `#check <theorem>` 探针（`lean --run` 或注入探针文件），确认 `<theorem>` 声明存在。
-3. **非公理检查**：对定理声明执行 `#print <theorem>` 输出，确认其定义体不是 `axiom`（`deny_proofs_axioms: true` 强制要求；若发现是 `axiom` 或 `sorry`，即使编译通过也判定未验证）。
+3. **非公理检查**：对定理声明执行 `#print axioms <theorem>` 探针，确认输出为空（无任何依赖 axiom；`deny_proofs_axioms: true` 强制要求）。若输出非空（定理本身是 `axiom`，或证明传递链依赖了 axiom/sorry），即使编译通过也判定未验证。注意：Lean 4 的 `#print <theorem>` 只输出类型，不提供依赖列表；依赖检查必须用 `#print axioms`。
 4. **锁定核对**：校验 `lean_binding.lock.toolchain` 与当前 `lean-toolchain` 内容一致，`lake_manifest_ref` 指向的文件存在（内容摘要可选）。
 
 核验结果（通过/失败 + 时间戳）由引擎写入 `lean_binding.verified/verified_at`，进入 audit_log。V2 由不同会话重跑同一 `run` 得到，记为独立执行证据。
@@ -321,14 +325,14 @@ lean_check.py verify <tree.json> <node-id>
 
 M3 本地运行，不实现 Proofweave 协议本身。导出器 `export_pw.py` 将探索树转为兼容事件流，供后续接入 Proofweave 节点。
 
-**权威参考**：Proofweave 协议文档与其 `proofweave-core.schema.json` 是导出正确性的外部基准。v0.1 交付时需将这两份文件（或等价的公开 URL）纳入仓库（如 `references/proofweave-protocol-v0.1.md` 与 `references/proofweave-core.schema.json`）——它们不是可选附件，而是导出器测试的固定基准。
+**权威参考**：Proofweave 协议文档与其 `proofweave-core.schema.json` 是导出正确性的外部基准。v0.1 交付时需将这两份文件纳入仓库（`references/proofweave-protocol-v0.1.md` 与 `references/proofweave-core.schema.json`）——它们不是可选附件，而是导出器测试的固定基准。获取源：用户本地已有副本（见设计背景），实施时从该处复制进仓库；若用户未提供，则使用 `https://proofweave.org/spec/0.1/` 公开 URL。
 
 ### 预演映射
 
 | M3 探索树元素 | Proofweave 事件 |
 |---|---|
 | 根节点 + 障碍卡片 | `project.create` + `synthesis.publish` |
-| success 节点（Lean 已验证） | `claim.publish` + `bundle.publish`（执行契约 = `lake build` + 定理名） |
+| success 节点（Lean 已验证） | `claim.publish` + `bundle.publish`（执行契约 = `lean_binding.run`，即 `lake build` + `lean_check.py` 核验命令） |
 | 审计门 L2 通过 | `verification.submit` (mode=`exact_bundle`/`ci_replay`) |
 | counterexample / no_go 节点 | `challenge.open` 或 empirical claim |
 | failed / withdrawn 节点 | `claim.withdraw` / `challenge.resolve`（append-only） |
@@ -338,7 +342,7 @@ M3 本地运行，不实现 Proofweave 协议本身。导出器 `export_pw.py` �
 1. **状态派生**：作者写入证据，状态由核验事件派生（§2.2）。
 2. **append-only**：修订链 `revision_of`，永不经编辑删除。
 3. **负面结果一等**：失败节点导出为 challenge/withdraw，不丢失。
-4. **可执行研究包**：成功节点的 `lean_binding.run` 即 bundle 执行契约。
+4. **可执行研究包**：成功节点的 `lean_binding.run`（`lake build` + 定理核验）即 bundle 执行契约。
 
 ---
 
