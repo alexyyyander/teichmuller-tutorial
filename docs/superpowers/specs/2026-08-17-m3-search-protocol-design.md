@@ -138,7 +138,7 @@ agent 动作 ──> 探索树(append-only JSON) ──> 状态派生引擎 ─�
 
 1. L1 审计通过（`audit.L1_passed=true`）
 2. `lean_binding` 存在且含 `lock`
-3. `lean_check.py` 的"文件编译 + 名为定理存在且非 axiom"双重核验返回 verified —— 此步即 L2 审计（Lean 核验），通过后引擎同时置 `audit.L2_passed=true`
+3. `lean_check.py` 四步核验（编译 + `#check` 定理存在 + `#print axioms` 非公理 + 锁定核对，§7.3）返回 verified —— 此步即 L2 审计（Lean 核验），通过后引擎同时置 `audit.L2_passed=true`
 4. （可选，V3+）独立复现通过
 
 **L2 是晋升门的硬性要求**：`audit.L2_passed=false` 的节点即使满足 1-3 也不能升级；凡第 3 步通过，引擎必须置 `L2_passed=true`，两者不得出现不一致。
@@ -314,7 +314,7 @@ lean_check.py verify <tree.json> <node-id>
 
 1. **编译**：执行 `lake build lean/<file>.lean`（等价于 `lean_binding.run` 的编译部分），退出码 0 才继续。
 2. **定理存在性**：在编译后的环境中执行 `#check <theorem>` 探针（`lean --run` 或注入探针文件），确认 `<theorem>` 声明存在。
-3. **非公理检查**：对定理声明执行 `#print axioms <theorem>` 探针，确认输出为空（无任何依赖 axiom；`deny_proofs_axioms: true` 强制要求）。若输出非空（定理本身是 `axiom`，或证明传递链依赖了 axiom/sorry），即使编译通过也判定未验证。注意：Lean 4 的 `#print <theorem>` 只输出类型，不提供依赖列表；依赖检查必须用 `#print axioms`。
+3. **非公理检查**：对定理声明执行 `#print axioms <theorem>` 探针，确认输出为空（无任何依赖 axiom；`deny_proofs_axioms` 在发现级节点无条件强制 true，见 §2.3）。若输出非空（定理本身是 `axiom`，或证明传递链依赖了 axiom/sorry），即使编译通过也判定未验证。注意：Lean 4 的 `#print <theorem>` 只输出类型，不提供依赖列表；依赖检查必须用 `#print axioms`。
 4. **锁定核对**：校验 `lean_binding.lock.toolchain` 与当前 `lean-toolchain` 内容一致，`lake_manifest_ref` 指向的文件存在（内容摘要可选）。
 
 核验结果（通过/失败 + 时间戳）由引擎写入 `lean_binding.verified/verified_at`，进入 audit_log。V2 由不同会话重跑同一 `run` 得到，记为独立执行证据。
