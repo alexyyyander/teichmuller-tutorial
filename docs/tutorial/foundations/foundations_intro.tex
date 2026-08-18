@@ -1,29 +1,48 @@
 \documentclass[UTF8,fontset=none,a4paper,11pt]{ctexart}
 
-\setCJKmainfont[Path=/System/Library/Fonts/Supplemental/]{Songti.ttc}
-\setCJKsansfont[Path=/System/Library/Fonts/]{STHeiti Medium.ttc}
-\setCJKmonofont[Path=/System/Library/Fonts/]{STHeiti Light.ttc}
-\setmainfont[
-  Path=/usr/local/texlive/2026/texmf-dist/fonts/opentype/public/tex-gyre/,
-  UprightFont=texgyrepagella-regular.otf,
-  BoldFont=texgyrepagella-bold.otf,
-  ItalicFont=texgyrepagella-italic.otf,
-  BoldItalicFont=texgyrepagella-bolditalic.otf
-]{texgyrepagella-regular.otf}
-\setsansfont[
-  Path=/usr/local/texlive/2026/texmf-dist/fonts/opentype/public/tex-gyre/,
-  UprightFont=texgyreheros-regular.otf,
-  BoldFont=texgyreheros-bold.otf,
-  ItalicFont=texgyreheros-italic.otf,
-  BoldItalicFont=texgyreheros-bolditalic.otf
-]{texgyreheros-regular.otf}
-\setmonofont[
-  Path=/usr/local/texlive/2026/texmf-dist/fonts/opentype/public/tex-gyre/,
-  UprightFont=texgyrecursor-regular.otf,
-  BoldFont=texgyrecursor-bold.otf,
-  ItalicFont=texgyrecursor-italic.otf,
-  BoldItalicFont=texgyrecursor-bolditalic.otf
-]{texgyrecursor-regular.otf}
+% 字体设置：优先使用系统字体，回退到默认字体
+% CI环境使用fontspec自动检测系统字体
+\IfFontExistsTF{Songti SC}{
+  \setCJKmainfont{Songti SC}
+}{
+  \IfFontExistsTF{Noto Serif CJK SC}{
+    \setCJKmainfont{Noto Serif CJK SC}
+  }{
+    \setCJKmainfont{SimSun}
+  }
+}
+
+\IfFontExistsTF{Heiti SC}{
+  \setCJKsansfont{Heiti SC}
+  \setCJKmonofont{Heiti SC}
+}{
+  \IfFontExistsTF{Noto Sans CJK SC}{
+    \setCJKsansfont{Noto Sans CJK SC}
+    \setCJKmonofont{Noto Sans CJK SC}
+  }{
+    \setCJKsansfont{SimHei}
+    \setCJKmonofont{SimHei}
+  }
+}
+
+\setmainfont{texgyrepagella}[
+  UprightFont=*-regular.otf,
+  BoldFont=*-bold.otf,
+  ItalicFont=*-italic.otf,
+  BoldItalicFont=*-bolditalic.otf
+]
+\setsansfont{texgyreheros}[
+  UprightFont=*-regular.otf,
+  BoldFont=*-bold.otf,
+  ItalicFont=*-italic.otf,
+  BoldItalicFont=*-bolditalic.otf
+]
+\setmonofont{texgyrecursor}[
+  UprightFont=*-regular.otf,
+  BoldFont=*-bold.otf,
+  ItalicFont=*-italic.otf,
+  BoldItalicFont=*-bolditalic.otf
+]
 
 \usepackage{geometry}
 \usepackage{amsmath,amssymb,amsthm,mathtools}
