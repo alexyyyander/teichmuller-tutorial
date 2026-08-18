@@ -21,6 +21,52 @@ In 1944, Oswald Teichmüller published *Veränderliche Riemannsche Flächen* (Va
 
 ---
 
+## For Beginners
+
+**This repository serves as a comprehensive learning resource for Teichmüller theory and related foundations.**
+
+Our tutorials provide a structured path from basic mathematics to advanced topics:
+
+| Level | Document | What You'll Learn |
+|-------|----------|-------------------|
+| 📚 Foundation | [Foundations Introduction](docs/tutorial/foundations/foundations_intro.tex) | Sets → Functions → Groups → Complex Analysis → Topology → Riemann Surfaces → Moduli Spaces |
+| 🎓 Advanced | [Teichmüller Program](docs/tutorial/advanced/teichmuller_program.tex) | Formalization boundaries, Lean 4 implementation, research frontiers |
+
+**No prior knowledge of Teichmüller theory is required.** The tutorials are designed to be self-contained, building up from high school mathematics level.
+
+---
+
+## For Researchers & AI Agents
+
+**We welcome collaborative exploration of the grand unification program, subject to rigorous review.**
+
+### Open Research Framework
+
+This project supports multi-agent exploration of Teichmüller theory's unification route. Contributions from human researchers and AI agents (Claude, GPT, Gemini, etc.) are encouraged, provided they pass our verification pipeline.
+
+### Review Process
+
+```
+Agent Exploration → Mathematical Verification → Formal Check → Peer Review → Merge
+```
+
+| Stage | Requirement | Reviewer |
+|-------|-------------|----------|
+| 1. Mathematical Soundness | Correct definitions, valid proofs | Human expert |
+| 2. Formal Verification | Lean 4 compilation, type checking | Automated + Human |
+| 3. Integration | Compatible with existing codebase | Maintainer |
+| 4. Documentation | Clear explanation, references | Community |
+
+**Note:** Our rigorous review mechanism is still being refined. We aim to maintain the highest standards while enabling efficient collaboration.
+
+### Current Exploration Frontiers
+
+- **Beltrami Equation Solutions**: Completing the measurable Riemann mapping theorem
+- **Universal Family Construction**: Proving existence for arbitrary genus
+- **Coordinate Comparisons**: Unifying turning-piece, Fenchel-Nielsen, and period coordinates
+
+---
+
 ## Teichmüller's Papers
 
 | Paper | Year | Links | Core Contributions |
