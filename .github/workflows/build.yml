@@ -1,0 +1,57 @@
+name: Build PDF Documents
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/build.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'docs/**'
+
+jobs:
+  build-latex:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Compile LaTeX document (Chinese version)
+      uses: xu-cheng/latex-action@v3
+      with:
+        root_file: docs/tutorial/foundations/foundations_intro.tex
+        latexmk_use_xelatex: true
+        working_directory: docs/tutorial/foundations
+        
+    - name: Compile LaTeX document (English version)
+      uses: xu-cheng/latex-action@v3
+      with:
+        root_file: docs/tutorial/foundations/foundations_intro_en.tex
+        latexmk_use_xelatex: true
+        working_directory: docs/tutorial/foundations
+
+    - name: Compile LaTeX document (Advanced Chinese version)
+      uses: xu-cheng/latex-action@v3
+      with:
+        root_file: docs/tutorial/advanced/teichmuller_program.tex
+        latexmk_use_xelatex: true
+        working_directory: docs/tutorial/advanced
+
+    - name: Compile LaTeX document (Advanced English version)
+      uses: xu-cheng/latex-action@v3
+      with:
+        root_file: docs/tutorial/advanced/teichmuller_program_en.tex
+        latexmk_use_xelatex: true
+        working_directory: docs/tutorial/advanced
+
+    - name: Upload PDF artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: pdf-documents
+        path: |
+          docs/tutorial/foundations/*.pdf
+          docs/tutorial/advanced/*.pdf
+        retention-days: 30

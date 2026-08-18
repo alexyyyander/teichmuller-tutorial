@@ -1,0 +1,1349 @@
+\documentclass[UTF8,a4paper,11pt]{article}
+
+\usepackage{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs,tabularx,longtable,array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\geometry{margin=2.5cm}
+\emergencystretch=3em
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=green!40!black,
+  urlcolor=blue!60!black
+}
+
+\newtheorem{definition}{Definition}[section]
+\newtheorem{proposition}[definition]{Proposition}
+\newtheorem{researchtarget}[definition]{Research Target}
+\newtheorem{remark}[definition]{Remark}
+
+\title{\textbf{The Unification Program for Variable Riemann Surfaces}\texorpdfstring{\\}{:}From Teichmüller's Original Route to Verifiable Formalization Core}
+\author{Research Notes and Lean Prototypes}
+\date{Continuously Updated: \today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This paper does not claim to have completed the formalization of Teichmüller theory, but rather reconstructs a research route that can continue to be advanced. The starting point is Oswald Teichmüller's
+\emph{Veränderliche Riemannsche Flächen} (variable Riemann surfaces) program: using markings, analytic families, and local deformation coordinates to place the variation of Riemann surfaces, the structure of moduli spaces, and the universal family into the same framework. This paper first organizes the basic interfaces of complex analysis, geometry, topology, and modular functions, and then writes the most stable structural layers into Lean. The current Lean code has already strictly defined topological spaces, continuous maps, homotopy closures, marking compatibility relations, and corresponding quotient spaces in the self-contained layer, and has concretely implemented the matrix units and multiplication of $SL_2(\mathbb Z)$ in the Mathlib adaptation layer; holomorphicity, homotopy on the standard unit interval, Beltrami equations, and the existence of universal families are explicitly reserved as subsequent goals.
+\end{abstract}
+
+\tableofcontents
+
+\section{Research Determination: What is Lost is the Unified Language, Not Mathematical Objects}
+
+This paper adopts the following judgment.
+
+\begin{quote}
+Teichmüller's original scheme as a "grand unification route"持续推进 by a single researcher确实中断了；但是它的核心对象和普适性思想并没有消失，而是被 Ahlfors--Bers 的拟共形分析、Kodaira--Spencer 的变形理论、Grothendieck 的模函子和普适族、双曲几何以及现代模空间理论分别继承。
+\end{quote}
+
+The 1944 paper is Teichmüller's last work on the moduli problem, and many places give ideas without complete technical details. Historical commentary particularly notes that this paper already contains ideas about the universal Teichmüller curve, fine moduli, analytic structures, and period mappings \cite{ACampo2012,ACampo2016}. Therefore, the promotion strategy of this project is not to invent another "grand unified theory" out of thin air, but to rewrite this diverted route into a checkable interface system.
+
+\subsection{Three Original Structures}
+
+According to relevant historical commentary, Teichmüller explicitly introduced three key concepts in this route \cite{ACampo2012}:
+
+\begin{enumerate}[label=(\arabic*)]
+  \item \textbf{Topological determination}: Attach a marking from a fixed topological surface to a Riemann surface;
+  \item \textbf{Analytic family}: Treat a family of Riemann surfaces as a fibration object, not a collection of isolated surfaces;
+  \item \textbf{Turning-piece coordinates}: Change the complex structure in the annular neighborhood of a simple closed curve, forming local deformation parameters; it can be seen as a precursor to later Fenchel--Nielsen twist coordinates.
+\end{enumerate}
+
+These three are not three independent theorems, but three levels of a unified mechanism: markings eliminate automorphism ambiguity in the moduli problem, analytic families describe how parameters vary, and local deformation coordinates provide computable directions.
+
+\section{Modern Rewrite of the Unified Core}
+
+\subsection{Marked Riemann Surfaces and Teichmüller Space}
+
+Fix a closed, orientable topological surface $S$. A marked Riemann surface is a pair
+\[
+  (X,m),\qquad m:S\longrightarrow X,
+\]
+where $X$ is a Riemann surface and $m$ is a marking that preserves the topological type. Two marked objects are equivalent if and only if there exists a biholomorphic map $f:X\to Y$ such that
+\[
+  n^{-1}\circ f\circ m:S\longrightarrow S
+\]
+is homotopic to the identity map.
+
+Thus the formal Teichmüller space is
+\[
+  \mathcal T(S)
+  =\{(X,m)\}/\text{marking-compatible biholomorphic equivalence}.
+\]
+
+Forgetting the marking, the mapping class group $\operatorname{Mod}(S)$ acts on $\mathcal T(S)$, and the moduli space is the quotient
+\[
+  \mathcal M(S)=\mathcal T(S)/\operatorname{Mod}(S).
+\]
+The order here is very important: first construct the marked space without orbit singularities, then take the quotient by the mapping class group, which is exactly the key to Teichmüller's route for turning "moduli parameters" into a space.
+
+\subsection{Analytic Families and Universal Properties}
+
+An analytic family can be abstractly written as
+\[
+  \pi:\mathcal X\longrightarrow B,
+\]
+where each fiber $\mathcal X_b=\pi^{-1}(b)$ is a Riemann surface, and the local coordinates vary holomorphically with $b$. The universal family should satisfy: for any analytic family $\mathcal Y\to B$ with corresponding markings or rigidification, there exists a (unique up to appropriate equivalence) holomorphic map
+\[
+  \varphi:B\longrightarrow\mathcal T(S)
+\]
+such that
+\[
+  \mathcal Y\cong \varphi^*\mathcal X.
+\]
+
+This is the core of unifying "all variable Riemann surfaces" into a single base space and its universal fiber. Grothendieck later wrote this idea into a more general universality theorem using moduli functors and rigidifying functors \cite{ACampo2016}.
+
+\subsection{Local Deformations and Comparison Coordinates}
+
+Given a simple closed curve $\gamma\subset S$, take its annular neighborhood $A_\gamma$. The abstract form of the turning-piece deformation is
+\[
+  \tau_\gamma:U_\gamma\longrightarrow \mathcal T(S),
+  \qquad \tau_\gamma(0)=[X,m],
+\]
+where $U_\gamma$ is a parameter neighborhood, and the deformation occurs only in the local model of $A_\gamma$. Subsequently, three types of coordinates need to be compared:
+
+\begin{itemize}
+  \item Turning-piece coordinates;
+  \item Fenchel--Nielsen length and twist coordinates;
+  \item Period or Hodge coordinates.
+\end{itemize}
+
+"Unification" here does not require the three types of coordinates to be literally the same, but requires them to be able to describe the same deformation functor through explicit conversion theorems.
+
+\section{Basic Information: Four Supporting Axes}
+
+\subsection{Complex Analysis Axis}
+
+The minimum chain that needs to be mastered is
+\[
+\text{Holomorphic functions}
+\to \text{Riemann mapping theorem}
+\to \text{Riemann surfaces}
+\to \text{Beltrami equations}
+\to \text{Quasiconformal deformations}
+\to \text{Quadratic differentials}.
+\]
+
+On a fixed Riemann surface $X$, the Beltrami differential can be formally written as
+\[
+  \mu(z)\,\frac{d\overline z}{dz},
+  \qquad \lVert\mu\rVert_\infty<1.
+\]
+It describes infinitesimal or finite deformations of the complex structure. The quadratic differential
+\[
+  q=\varphi(z)\,dz^2
+\]
+provides horizontal and vertical directions, and produces the most important geometric direction in Teichmüller extremal mappings.
+
+The formalization difficulty lies not in defining symbols, but in constructing measurable function spaces, almost everywhere equality, weak derivatives, and the existence and uniqueness of Beltrami equations. The current Lean has already crossed the first step of "only placeholder predicates":
+\texttt{MathlibBeltrami.lean} defines measurable and essentially bounded
+\texttt{BeltramiCoefficient m} with explicit measure $m$, defines the complex-linear and anti-linear parts of the real derivative, and writes
+\texttt{BeltramiEquationOn} as a pointwise equation. For zero coefficients, the code proves that on open coordinate domains
+\[
+\texttt{BeltramiEquationOn }0\,f\,U
+\quad\Longleftrightarrow\quad
+\mathrm{DifferentiableOn}_{\mathbb C}(f,U).
+\]
+\texttt{BeltramiCoefficient.pullback} also gives the pullback of the coefficient when the chart coordinate transformation satisfies absolute continuity of measure transport; the code now proves the identity and composition laws of the pullback, which is the measure-transport version of the coordinate-change cocycle core.
+\texttt{BeltramiChartDeformation} packages the equation with open coordinate domains and local mappings,
+\texttt{BeltramiFamilyData} records varying domains, fiberwise equations, and joint continuity of the mapping.
+The new parameter-continuous family structure requires that for each fixed coordinate $z$, the coefficient value varies continuously with the base space parameter, but does not强加 the general measurability of the coefficient in $z$ to continuity; the zero-coefficient constant family provides the standard test object for this layer.
+The new file \texttt{MathlibBeltramiCocycle}\allowbreak\texttt{.lean} further packages chart indices, transition maps, absolute continuity of measures, and coefficient compatibility into a scalar transport cocycle and proves the triple pullback equals direct transition.
+Here it is explicitly only an intermediate layer of coefficient composition, and the derivative term in the coordinate transformation has not yet been included in the complete Beltrami differential transformation law.
+\texttt{MathlibBeltramiDifferential}\allowbreak\texttt{.lean} now补上了 this derivative-dependent algebraic core:
+any real linear differential is proved to be uniquely writable as
+\(D(z)=a z+b\overline z\), and the复合 coefficients are proved to satisfy
+\[
+  a_{D\circ E}=a_Da_E+b_D\overline{b_E},\qquad
+  b_{D\circ E}=a_Db_E+b_D\overline{a_E}.
+\]
+The code further defines the \(b/a\) form differential Beltrami coefficient, proves its composition quotient formula, and proves that zero coefficient is equivalent to the repeated linear part being zero under \(a\ne0\). What is completed here is the checkable algebraic layer of the derivative formula, and further defines the coefficient based on \texttt{fderiv}, directly proving the same transformation formula for differentiable function composition.
+It has not yet been lifted to a measurable differential field on charts, weak regularity, or a complete surface cocycle.
+\texttt{MathlibBeltramiDifferentialCocycle}\allowbreak\texttt{.lean} then packages the pointwise derivative transport cocycle and defines \texttt{RealDifferentiableBeltramiDifferentialTransportCocycle} which requires the differential field to indeed equal the transition function \texttt{fderiv}; the triple composition law is derived from Mathlib's \texttt{fderiv\_comp} rather than being repeated as an independent assumption. Here it still does not claim almost everywhere differential fields, integrability, or the measurable Riemann mapping theorem in the measure sense.
+\texttt{MathlibBeltramiAEEq}\allowbreak\texttt{.lean} now pushes this route to the explicit measure layer:
+\texttt{AEBeltramiDifferentialTransportCocycle} records strong a.e. measurability of the differential field, coefficient transformation laws, and a.e. versions of the differential self-identity/triple composition laws;
+\texttt{RealDifferentiableAEBeltramiDifferentialTransportCocycle} further records a.e. equality with \texttt{fderiv} and derives coefficient compatibility with \texttt{fderiv}.
+The conversion from the old pointwise structure to this layer explicitly requires the user to supply measurability of the differential field, so it does not silently upgrade "everywhere differentiable" to "measurable differential field" without conditions. This step is a checkable interface advancement, not a proof of the measurable Riemann mapping theorem, integrability, or existence and uniqueness of solutions.
+\texttt{MathlibBeltramiChart}\allowbreak\texttt{.lean} further接通 the a.e. layer to actual
+\texttt{ComplexAtlas} charts. Since chart transitions are only canonical on overlaps,
+\texttt{LocalAEBeltramiDifferentialChartSystem} restricts the measure to each overlap and records the genuine chart transition, its a.e. measurability, differential-\texttt{fderiv} equality, and absolute-continuity transport of the triple-overlap measure.
+Lean also proves the actual chart transition composition identity on triple overlaps, and derives the local a.e. chain law from that transport, overlap openness, and \texttt{fderiv\_comp}, rather than assuming the chain law as an independent field.
+\texttt{FamilyLocalAEBeltramiData} then assigns this local system to every fiber of a concrete
+\texttt{ComplexSurfaceFamily.Family}; the constant complex-plane family provides a regression model with actual content.
+General chart differential field measurability constructions and the measurable Riemann mapping theorem are still not automatically given by this interface.
+\texttt{C1ComplexAtlas} now provides the first layer of constructive regularity interface; more importantly,
+\texttt{ComplexAtlas.toC1ComplexAtlas} can already automatically generate it from existing open overlaps and holomorphic transitions.
+Mathlib's complex analytic regularity theorem gives smoothness, and then by restriction of scalars the complex derivative is identified as the real \texttt{fderiv}, thus proving continuity of the real derivative on overlaps.
+\texttt{C1LocalBeltramiInput.toLocal} then defines the differential field as the \texttt{f指示} indicator function on overlaps (zero outside), derives strong a.e. measurability from continuity on open sets, and derives a.e. equality with \texttt{fderiv} from the restricted measure itself.
+Coefficient compatibility and absolute continuity of the triple-overlap transport remain explicit analytic inputs;
+the constant complex-plane example already regresses this auto-generation process.
+On this basis, \texttt{FiniteMeasureC1LocalBeltramiInput} takes "each chart measure is finite" as an explicit additional analytic input.
+\texttt{BeltramiCoefficient.integrable} uses measurability, essential boundedness, and Mathlib's finite-measure bounded integrability theorem to prove Bochner integrability of the coefficient,
+\texttt{integrable_restrict} then transfers this to every overlap restriction measure;
+the finite-measure complex-plane input provides a regression instance.
+This is only a sufficient condition interface for integrability, and does not claim the measurable Riemann mapping theorem or existence of equation solutions.
+For chart measures not assumed finite, \texttt{DominatedC1LocalBeltramiInput} instead receives an integrable real-valued majorant on each chart and proves coefficient integrability through Mathlib's monotone domination theorem;
+the zero-coefficient complex-plane input gives a regression model independent of finite measure.
+The new file \texttt{MathlibBeltramiFamily}\allowbreak\texttt{.lean} further defines
+\texttt{BeltramiCompatibleFamily}: it embeds the Beltrami coordinate domain as an open subspace of a real
+\texttt{ComplexSurfaceFamily.Family} total space and strictly proves projection compatibility.
+This only completes the "data, localization, and degenerate cases" strict interface;
+the measurable Riemann mapping theorem, existence and uniqueness of solutions, complete chart cocycle compatibility, and universality are still not formalized.
+
+\subsection{Geometry Axis}
+
+The uniformization theorem connects higher-genus surfaces with hyperbolic geometry. The research route is usually
+\[
+\begin{aligned}
+\text{Curvature and metric}
+&\to \text{Uniformization}
+\to \text{Hyperbolic surfaces}
+\to \text{Extremal length},\\
+&\to \text{Fenchel--Nielsen coordinates}
+\to \text{Weil--Petersson geometry}.
+\end{aligned}
+\]
+
+In this language, Teichmüller space can be seen as both a complex structure space and a marked hyperbolic structure space. The local twist interpretation of turning-piece coordinates is most easily computed and compared on this geometry axis.
+
+\subsection{Topology Axis}
+
+The minimal objects of the topology axis include: surface classification, simple closed curves, homotopy and isotopy, fundamental groups, and mapping class groups. The core expression in the marking relationship is
+\[
+  n^{-1}fm\simeq\operatorname{id}_S.
+\]
+The mapping class group records all allowed marking changes through
+\[
+  \operatorname{Mod}(S)=\pi_0\operatorname{Homeo}^+(S).
+\]
+During formalization, reflexivity, symmetry, and transitivity of equivalence relations are earlier and more suitable targets for Lean verification than analytic existence theorems.
+
+\subsection{Modular Functions and Low-Genus Models}
+
+Modular functions provide a low-genus computable model. Genus-one Riemann surfaces can be described by parameters $\tau$ on the upper half-plane, subject to
+\[
+  \mathrm{SL}_2(\mathbb Z):\tau\longmapsto\frac{a\tau+b}{c\tau+d}.
+\]
+Modular functions are meromorphic functions invariant under this action; modular forms carry weight transformation laws.
+
+This part has three roles in this program:
+
+\begin{enumerate}[label=(\arabic*)]
+  \item Using $\mathbb H/\mathrm{SL}_2(\mathbb Z)$ to demonstrate the minimal example of "parameter space then quotient";
+  \item Understanding period mappings through elliptic curve periods;
+  \item Studying explicit moduli parameters of four-puncture spheres using the modular $\lambda$ function.
+\end{enumerate}
+
+Therefore, modular functions are not a side branch unrelated to Teichmüller theory, but a bridge that compresses "complex structure--group action--moduli space--arithmetic functions" into computable examples.
+
+\section{Research Program for Backward Progress}
+
+This project converts "reconstructing unification" into a group of targets that can fail layer by layer and be verified layer by layer.
+
+\begin{longtable}{p{0.13\textwidth}p{0.31\textwidth}p{0.45\textwidth}}
+\toprule
+Stage & Mathematical Objects & Verifiable Results \\
+\midrule
+$P_0$ & Four basic axes & Unified symbols, definitions, examples, and dependency graphs \\
+$P_1$ & Topology, homotopy, and markings & Continuous maps, homotopy relations, marking compatibility relations, and Teich-type quotient spaces \\
+$P_{1.5}$ & Mathlib entity layer & Standard unit intervals, complex charts, holomorphic transitions, and induced pullback topologies \\
+$P_2$ & Analytic families & Fiber, pullback, and universal property structural interfaces \\
+$P_3$ & Turning-piece deformations & Local coordinate interfaces, comparison with Fenchel--Nielsen coordinates \\
+$P_4$ & Periods and modular functions & Low-genus examples, period mappings, and group action compatibility \\
+$P_5$ & Modern bridging & Explicit intersection points of higher Teichmüller, Higgs bundles, and geometric Langlands \\
+\bottomrule
+\end{longtable}
+
+\begin{researchtarget}[Deliverable target for the first version]
+Establish a Lean structural core that does not rely on "advanced theorems already established":
+\begin{enumerate}[label=(\alph*)]
+  \item Define topological spaces, open sets, continuous maps, and product topologies;
+  \item Construct marking compatibility relations with explicit homotopy closures and prove their equivalence relation properties;
+  \item Define Teichmüller-type spaces as quotients of this relation;
+  \item At the next layer, define complex structure, Riemann surface, and marked Riemann surface atlas interfaces;
+  \item Record analytic families, universal families, and turning-piece coordinate interfaces;
+  \item Reproduce the above chains using Mathlib's standard topology, homotopy, complex differentiation, and induced topologies;
+  \item Prove that the quotient map respects marking compatibility relations.
+\end{enumerate}
+\end{researchtarget}
+
+\section{Lean Formalization Boundary and Code Correspondence}
+
+The code is located in \texttt{lean/Teichmuller/}. The current implementation contains a self-contained topology layer, complex structure atlas layer, and analytic family structural interfaces that do not depend on Mathlib; at the same time, it has接入 a fixed version of Mathlib, and has推进 standard unit interval homotopy, complex charts with \texttt{DifferentiableOn} transitions, induced pullback topologies, the modular group's integer matrix algebra, the upper half-plane \(\mathbb H\), fundamental domain representatives, level-one nonconstant modular forms, the first weight-zero quotient function, and the first layer of Beltrami data to compilable concrete layers. The holomorphic/meromorphic extension of weight-zero quotients, existence and uniqueness of Beltrami solutions, analytic family existence, and true universal family construction are still推进 for the future.
+
+\begin{center}
+\scriptsize
+\begin{tabularx}{\textwidth}{>{\ttfamily}lX}
+\toprule
+File & Content \\
+\midrule
+Core.lean & Structural layer: topological surfaces, complex structures, Riemann surfaces, homeomorphisms, marked objects, analytic families, universal families, turning-piece coordinates \\
+Topology.lean & Self-contained topology layer: open set axioms, product/induced/subspace topologies, continuous map pairings, topological isomorphisms, homotopy closures, and quotients \\
+Complex.lean & Complex structure atlas layer: local coordinate charts, covers, transition maps, holomorphic theory closures, and holomorphic maps \\
+Family.lean & Analytic family layer: dependent sum total spaces, continuous projections, marked families, pullback functoriality, fiber equivalence groupoids, and classification witnesses \\
+MathlibTopology.lean & Mathlib topology adaptation: actual \texttt{TopologicalSpace}, \texttt{Homeomorph}, standard unit interval homotopy, marked quotients \\
+MathlibComplex.lean & Mathlib complex structure adaptation: \(\mathbb C\) charts, open domains/ranges, parameter translation charts, \texttt{ContinuousOn} and \texttt{DifferentiableOn} transitions, family projection coordinate compatibility \\
+MathlibFamily.lean & Mathlib family adaptation: unmarked dependent sum total spaces, canonical pullback and induced topologies, fixed marking skeletons, continuous projections, fiberwise equivalences, and universal property interfaces \\
+MathlibFiberBundle.lean & Mathlib fiber bundle adaptation: FiberBundle witness, standard pullback, local trivializations, chartwise holomorphic fiber equivalences, global analytic families, and global pullback classification interfaces \\
+MathlibTorus.lean & Lattice quotient complex tori: covering maps, local lifts, discrete lattice transitions, complex atlases, families and modular group comparison homeomorphisms, analytic test bases \\
+MathlibBeltrami.lean & Beltrami data: explicit measures, measurable essentially bounded coefficients, Bochner integrability under finite measures and general integrable domination theorems, normalized solutions and pointwise/a.e. parameter-dependent solution family witnesses, measure-transport pullback and its identity/composition laws, real derivative complex/anti-linear decomposition and zero-coefficient regression \\
+MathlibBeltramiAffine.lean & Nonzero constant coefficient regression: explicit affine solutions and inverses, real Fréchet derivatives, complex/anti-linear parts, pointwise Beltrami equations, infinity-point extension, and normalized solution witnesses \\
+MathlibBeltramiCocycle.lean & Scalar Beltrami transport cocycle: indexed charts, measurable transitions, measure absolute continuity, coefficient compatibility, and triple pullback theorem \\
+MathlibBeltramiDifferential.lean & Derivative-dependent layer: real linear differential complex/anti-linear decomposition, composition coefficient formulas, differential Beltrami quotients, composition transformation laws, and strict less than one coefficient ellipticity estimates \\
+MathlibBeltramiContraction.lean & Conditional Banach layer: complete extended metric state space, contraction operators, iteration convergence, a priori error estimates, and fixed point/normalized solution encoding/decoding uniqueness interfaces \\
+MathlibBeltramiNeumann.lean & Neumann operator layer: unique solution to \(u=g+Ku\) in complete complex normed spaces, iteration convergence, geometric error bounds, a priori norm estimates, and \(K=\mu B\) scalar regression \\
+MathlibBeltramiMultiplier.lean & \(L^p\) coefficient multiplication layer: essentially bounded complex coefficients, genuine multiplication operator \(M_\mu\), norm estimates, composition with candidate singular operators, and \(L^p\) Neumann interface \\
+MathlibBeltramiFourier.lean & Fourier-side \(L^2\) Beurling model: symbol \(m(\xi)=\overline{\xi}/\xi\), measurability, modulus control, Plancherel conjugation, physical-side norm \(\leq 1\), and Neumann bridge \\
+MathlibBeltramiCalderonZygmund.lean & Calderón--Zygmund boundary: kernel pointwise norm, quarter-turn antisymmetry, truncation upper bounds and discrete pointwise limits, annulus truncation differences, annulus principal value Cauchy data, principal value and \(L^p\) operator identification bridge, dominated convergence avoiding singularities, finite disk linear combination exact cancellation, quadratic disk local oscillation majorants and explicit principal values, integer vanishing families, majorant data additive closure and binomial quadratic superposition, unified tail estimates to principal value convergence bridging, and \(L^p\) operator witnesses \\
+MathlibBeltramiNeumannFamily.lean & Parameter family Neumann layer: fixed kernel, continuous forcing terms, solution stability estimates under unified contraction constants, and continuous solution families \\
+MathlibBeltramiNeumannOperatorFamily.lean & Variable operator family Neumann layer: continuous kernels, continuous forcing terms, unified contraction radii, kernel difference stability estimates, and continuous fixed-point families \\
+MathlibBeltramiDifferentialCocycle.lean & Pointwise derivative transport cocycle, genuine differentiable extension where derivative equals transition \texttt{fderiv}, and chain rule derived from \texttt{fderiv\_comp} \\
+MathlibBeltramiAEEq.lean & Almost everywhere layer: differential field strong measurability, coefficient/differential cocycle a.e. compatibility laws, a.e. equality with \texttt{fderiv}, and conservative conversion \\
+MathlibBeltramiChart.lean & Actual chart bridge: overlap restriction measures, triple-overlap measure transport, genuine transitions, local a.e. chain law derived from \texttt{fderiv\_comp}, constructive C1 differential fields, coefficient integrability under finite measures, and fiberwise family interfaces \\
+MathlibBeltramiFamily.lean & Beltrami and actual analytic family bridge: open embedding into family total space, family projection compatibility, and positioning interfaces for subsequent cocycles \\
+Program.lean & Equivalence relations, quotient spaces, and executable declarations of subsequent research objectives \\
+Modular.lean & $SL_2(\mathbb Z)$ matrix determinants, multiplication, unit elements, and associativity, as well as abstract group action and modular function invariance interfaces \\
+ModularMathlib.lean & Mathlib's $SL(2,\mathbb Z)$, upper half-plane $\mathbb H$, Möbius action, fundamental domains, $E_4,E_6,\Delta$ and $j$-type weight-zero quotient bridging \\
+Main.lean & Build entry point and compilation check \\
+\bottomrule
+\end{tabularx}
+\normalsize
+\end{center}
+
+\subsection{Mathlib Adaptation and Modular Group Algebra Layer}
+
+The project now fixes Mathlib's
+\texttt{last\_bump\_for\_v4.31.0} branch through \texttt{lakefile.lean}, with Lean
+\texttt{v4.31.0-rc1}. This is not a wholesale rewrite of the topology layer into Mathlib, but rather first selects an algebraic entry point that can directly support the research route:
+\texttt{SL2ZMatrix} is already an integer matrix with
+\[
+  ad-bc=1
+\]
+constraint; the code concretely defines the unit matrix, matrix multiplication, and uses \texttt{ring} and
+\texttt{norm\_num} to prove the determinant constraint is preserved under multiplication; subsequently proves the unit element law and associativity, constructing
+\texttt{SL2ZMatrix.monoidSpec}. Therefore, the current modular function layer is no longer just a named interface for "group action", but has a real computable modular group candidate object.
+
+Here three things still need to be distinguished: the self-contained matrix algebra has been concretized; Mathlib's actual upper half-plane action has been接入; the analytic modular function structural fields have been concretized, but nontrivial classical examples and corresponding theorems have not yet been proven. The latter boundary is important because "having a group action" and "existence of analytic modular functions" are assertions at different levels.
+
+\subsection{Mathlib's Upper Half-Plane and Fundamental Domain Bridging}
+
+The new file \texttt{ModularMathlib.lean} no longer re-declares an abstract complex plane, but directly uses Mathlib's
+\texttt{UpperHalfPlane} (denoted \(\mathbb H\)) and the $SL(2,\mathbb Z)$ Möbius action. The code defines the concrete action's \texttt{ActionSpec}, and maps the \texttt{MathlibModularFunction} with actual invariance proof fields to the previous layer's abstract modular function interface. This way, the abstract layer still retains replaceability, while the concrete layer can already call real complex numbers and topological structures.
+
+At the same time, an explicit injection from the custom four-element integer matrix model to Mathlib
+\(SL(2,\mathbb Z)\) is given, its implementation name being
+\[
+\texttt{SL2ZMatrix.toMathlib}.
+\]
+This step does not identify the two representations without proof, but retains the representation conversion and its injection theorem. The fundamental domain results already provided by Mathlib can now be directly written as
+\[
+  \forall\tau\in\mathbb H,\quad
+  \exists\gamma\in SL(2,\mathbb Z),\quad
+  \gamma\cdot\tau\in\mathcal D,
+\]
+and uniqueness of the representative in the open fundamental domain is proven (under the current action convention表现为 \(\tau=\gamma\cdot\tau\)). Additionally, the generator formulas for $T$ and $S$ are recorded as
+\[
+  T\cdot\tau=\tau+1,\qquad
+  S\cdot\tau=-\frac{1}{\tau}.
+\]
+
+This step has already接通 the main trunk of "complex upper half-plane \(\to\) discrete modular group action \(\to\) moduli space fundamental domain". Mathlib's modular form layer provides level-one $E_4$, $E_6$, and nonconstant modular discriminant $\Delta$, and the GradedRing layer gives actual identities
+\[
+  \Delta(\tau)=\frac{E_4(\tau)^3-E_6(\tau)^2}{1728}.
+\]
+The project then defines
+\[
+  j_{\mathrm{type}}(\tau)=\frac{1728E_4(\tau)^3}{\Delta(\tau)}
+\]
+and uses \(\Delta(\tau)\ne0\) and the slash transformation law of modular forms to prove
+\(j_{\mathrm{type}}(\gamma\tau)=j_{\mathrm{type}}(\tau)\). This object has been separately packaged as a concrete
+\texttt{MathlibModularFunction} and the previous layer's abstract \texttt{ModularFunction}; but the project has not yet claimed completion of meromorphic extension at compactified cusps, modular curve quotient spaces, or Teichmüller universal families, which still require subsequent meromorphicity and quotient space theorems.
+
+In the complex analysis layer, \texttt{HolomorphicModularFunction} now requires a function
+\(f:\mathbb C\to\mathbb C\) satisfying
+\[
+  \operatorname{DifferentiableOn}(\mathbb C,f,\mathbb H),
+  \qquad f(\gamma\cdot\tau)=f(\tau).
+\]
+where \(\mathbb H\) is given as a subset of \(\mathbb C\) by the actual condition \(0<\operatorname{Im}z\). The code also proves that every constant function is an instance of this structure, and gives a forgetful map from analyticity; therefore this has already推进 from abstract \texttt{Prop} placeholders to Mathlib's complex differentiation predicates. The current $j$-type function first exists as a concrete invariant function on \(\mathbb H\), and has not yet converted "quotient of holomorphic functions" into a global \texttt{HolomorphicModularFunction} field, nor handled compactification points.
+
+In parallel, \texttt{MathlibLevelOneModularForm} and
+\texttt{MathlibLevelOneCuspForm} directly复用 Mathlib's modular form objects. The code concretely names
+\(E_4\), \(E_6\), and the discriminant
+\[
+  \Delta=\eta^{24}\in S_{12}(SL_2(\mathbb Z)),
+\]
+and proves
+\[
+  \Delta(\tau)\ne0\quad(\tau\in\mathbb H),\qquad
+  [q^1]\,\Delta=1.
+\]
+The second equality is a nonconstancy certificate: it shows the $q$-expansion is not a zero constant series. Weight消去 has now completed the first step: cubing a weight-4 object to get weight-12, then dividing by weight-12 $\Delta$, and on the basis of $\Delta\ne0$ formalized the invariance. The next step should prove that this quotient is complex-analytic on \(\mathbb H\), and推进 it to the meromorphic function/modular curve layer including cusps.
+
+The core definitions in Lean can be summarized as
+\[
+  \mathsf{Teich}(S)=
+  \mathsf{Quotient}\bigl(\mathsf{MarkedRiemannSurface}(S),\sim\bigr).
+\]
+The current \texttt{MarkingRelation} is still an abstract interface in the old core; the newly added \texttt{Topology.lean} has concretized its topological prerequisites. Using self-contained set representations and open set axioms, it divides core objects into three groups:
+
+\begin{itemize}
+  \item Topology and continuity: \texttt{Topology}, product topologies, induced/subspace topologies, \texttt{Continuous}, \texttt{ContinuousMap}, \texttt{TopologicalEquiv};
+  \item Homotopy: \texttt{HomotopyRelation};
+  \item Markings and quotients: \texttt{MarkingRelated} and corresponding quotients.
+\end{itemize}
+
+Therefore, there are now two clear layers: the old interface ensures the research skeleton compiles, while the new layer proves actual structural properties of the topology and homotopy parts. They have not yet been merged into a complete Riemann surface object, which is an intentional boundary.
+
+The core chain of the new layer can be written as
+
+\[
+\begin{aligned}
+\mathsf{Topology}(X)&\longrightarrow
+\mathsf{Continuous}(f)\longrightarrow
+\mathsf{HomotopyRelation}(f,g),\\
+\mathsf{MarkedTopologicalObject}(S)&\longrightarrow
+\mathsf{MarkingRelated}(X,Y)\longrightarrow
+\mathsf{Quotient}(\mathsf{MarkingRelated}).
+\end{aligned}
+\]
+
+For two marked objects $(X,m_X)$ and $(Y,m_Y)$, the new layer's relationship requires a topological isomorphism $e:X\to Y$ satisfying
+
+\[
+e\circ m_X\simeq m_Y.
+\]
+
+The self-contained layer still places the direct cylinder homotopy in an explicit reflexive, symmetric, transitive closure to ensure the independent core compiles. Meanwhile, the Mathlib adaptation layer already uses standard unit-interval \texttt{ContinuousMap.Homotopic} and directly calls its reversal, concatenation, and equivalence relation theorems. This way, the old layer's conservative closure and the concrete Mathlib layer's standard homotopy can coexist, and the boundary is not confused.
+
+After fixing the Mathlib dependency, the next steps should still be sequentially implemented:
+
+\begin{enumerate}[label=(\arabic*)]
+  \item Gradually establish structure-preserving maps between the self-contained topology layer's objects and Mathlib's standard objects;
+  \item Lift the existing $j$-type quotient's \(\mathbb H\)-domain invariant function proof to a holomorphic/meromorphic function structure, and further handle cusp compactification and modular curve quotients;
+  \item Mathlib \texttt{FiberBundle} local triviality and chartwise holomorphic variation of analytic families;
+  \item Completed scalar Beltrami transport cocycle, pullback identity/composition laws, parameter-continuity under fixed coordinates, complex/anti-linear composition formulas for real linear differentials, pointwise differential cocycle derived from \texttt{fderiv\_comp}, differential field interfaces recording strong measurability and a.e. compatibility laws, and local chart interfaces binding actual \texttt{ComplexAtlas} overlaps; currently also formalized absolute-continuity transport of triple-overlap measures, and derived local a.e. chain law from it; \texttt{ComplexAtlas.toC1ComplexAtlas} can automatically generate continuous real derivative fields from holomorphic transitions, then \texttt{C1LocalBeltramiInput.toLocal} generates strong a.e. measurable differential fields; \texttt{FiniteMeasureC1LocalBeltramiInput} takes finite measures as additional input and formalizes Bochner integrability of coefficients and their overlap restrictions; next steps push coefficient transport measurable/integrable conditions, existence/uniqueness of measurable solutions, and compatibility with complex atlases;
+  \item Expressible versions of universality theorems.
+\end{enumerate}
+
+\begin{remark}
+"Interface compiles" does not mean "Teichmüller theorem is formalized". The value of formalization lies in clearly separating what is definition, what is axiom interface, and what still needs proof.
+\end{remark}
+
+\section{Formalization Push One: Topology, Homotopy, and Marking Relations}
+
+This section records the first step that has already landed. It is not stuffing Riemann surface theory into a type, but first extracting the topological skeleton that the Teichmüller construction depends on.
+
+\subsection{Topology and Continuity}
+
+In \texttt{Topology.lean}, topological spaces are composed of open set predicates and three closure properties: the whole set is open, finite intersections are open, and arbitrary unions are open. Product topologies are defined using local characterizations of open rectangles, and strict proofs that both projections are continuous are由此 given. Continuity uses the inverse image definition:
+
+\[
+\operatorname{Continuous}_{X,Y}(f)
+\;:\Longleftrightarrow\;
+\forall U\;(U\text{ open in }Y\Rightarrow f^{-1}(U)\text{ open in }X).
+\]
+
+The code simultaneously provides composition of continuous maps, continuous map structures, and bidirectional continuous topological isomorphisms. The significance of this step is: subsequent markings are no longer just bijections between bare sets, but can require preserving actual topology.
+
+At the same time, induced topologies and subspace topologies defined by inverse images are added, and continuity of the induced map and subspace inclusion map is proven. This provides a unified topological construction entry point for the total space of analytic families, pullback spaces, and local chart overlap regions; currently they still use self-contained set interfaces, and can directly interface with Mathlib's同名 constructions later.
+
+A pairing theorem for continuous functions is also proven: if $f:Z\to X$ and $g:Z\to Y$ are continuous, then $(f,g):Z\to X\times Y$ is continuous. The proof directly expands open rectangles of the product topology and uses arbitrary union closure to recover inverse image open sets, providing a basic tool for subsequent pullback composition and family local coordinate patching.
+
+\subsection{Homotopy Closure and Marking Compatibility}
+
+Given a topological parameter $I$ with two endpoints, a direct homotopy is a continuous map
+
+\[
+H:I\times X\longrightarrow Y,
+\qquad H(0,x)=f(x),\quad H(1,x)=g(x).
+\]
+
+The code names the reflexive, symmetric, transitive closure of direct homotopy \texttt{HomotopyRelation} and proves that continuous post-composition preserves this relationship. Thus, fixing a reference topological space $(S,\tau_S)$, a marked object contains
+
+\[
+m:S\xrightarrow{\cong}X,
+\]
+
+where $m$ is a topological isomorphism; two marked objects are compatible if and only if there exists a topological isomorphism $e:X\to Y$ satisfying
+
+\[
+e\circ m_X\;\mathrel{\texttt{HomotopyRelation}}\;m_Y.
+\]
+
+The reflexivity, symmetry, and transitivity of this relation have already been proven in Lean by composition of topological isomorphisms, inverse maps, and post-composition of homotopies. Therefore, corresponding quotient spaces can be strictly formed, and compatible markings give the same quotient point.
+
+\subsection{Boundaries Not Yet Crossed}
+
+This layer still does not use $\mathbb R$, $\mathbb C$, or local Euclidean atlases, nor has it proven any Riemann mapping theorem. The complex structure atlas layer has already been加入 as a structural interface for the next layer, but it retains holomorphicity as an explicit parameter; therefore the old \texttt{MarkingRelation} has not yet been replaced by the complete topology-analysis relationship.
+
+\section{Formalization Push Two: Complex Structure Atlases}
+
+\texttt{Complex.lean} adds local coordinates on top of the topology layer, but temporarily does not误认 "having an atlas" as "complex analysis theorems are complete". Its basic objects are:
+
+\begin{itemize}
+  \item \texttt{LocalChart}: local coordinate charts with open domains, open ranges, mutual inverse maps, and relative continuity;
+  \item \texttt{transitionMap}: explicit transition maps of two coordinate charts on overlap regions;
+  \item \texttt{TransitionData}: requires transition data to be consistent with coordinate transformations at overlaps and satisfy a named holomorphicity predicate;
+  \item \texttt{HolomorphicTheory} and \texttt{HolomorphicMap}: record identity, restriction, and composition laws, lifting holomorphicity from bare propositions to replaceable theoretical objects;
+  \item \texttt{ComplexAtlas}: atlas covers every point and provides transition data for every pair of charts;
+  \item \texttt{AtlasRiemannSurface} and \texttt{MarkedAtlasSurface}: package atlases into surfaces and reconnect topological markings.
+\end{itemize}
+
+In Lean, holomorphicity is retained as a parameter
+\[
+  \mathsf{isHolomorphicOn}:\mathsf{Set}(M)\to(M\to M)\to\mathsf{Prop}.
+\]
+The benefit of this step is that dependencies become visible: atlas coverage, continuity, and overlap consistency are already structural fields; true complex differentiation, chain rule, and analyticity of transition maps wait for setting the model $M$ to $\mathbb C$ and接入 Mathlib's complex differentiation predicates. Only then can the atlas layer be connected to analytic families, Beltrami deformations, and universal properties.
+
+\section{Formalization Push Three: Analytic Families, Pullbacks, and Universal Property Interfaces}
+
+On top of the atlas layer, \texttt{Family.lean} writes "surfaces varying with parameters" as a genuine dependent type structure. For a base space $B$, the family's total space takes the dependent sum of fibers
+\[
+  \mathcal X=\sum_{b:B}X_b,
+  \qquad \pi(b,x)=b.
+\]
+Thus each fiber $X_b$ is an actual type, the projection $\pi$ has a continuity proof; the total space topology is provided as data, temporarily not assuming some unrealized generating topology theorem. The family also retains a named \texttt{analyticVariation} field, marking that true analytic local triviality is not yet complete.
+
+For a continuous map $f:C\to B$, the code defines the pullback family's fiber
+\[
+  f^*\mathcal X\;\text{at }c\text{ equals }X_{f(c)}.
+\]
+The code now also provides the canonical pullback topology: mapping $(c,x)$ to $(c,(f(c),x))\in C\times\mathcal X$, then taking the topology induced by that mapping; by continuity of the induced map and continuity of the first projection of the product space, strict proof that the pullback projection is continuous is given. The general explicit topological parameter version is retained to express other topological models that need comparison in the future. \texttt{MarkedSurfaceFamily} attaches topological markings from a fixed reference surface to each fiber.
+
+This layer also补上了 the reverse criterion for induced topologies: if the composite $f\circ g$ is continuous, then the induced topology of $g$ to $f$ is continuous. Thus, when $g:D\to C$ is continuous, the code gives
+\texttt{canonicalPullback\_comp\_equiv}: iterative pullback along $f$ then $g$, and direct pullback along $f\circ g$, are topologically equivalent through the identity function. Here the proof is topological equivalence rather than literal equality of topological structures, because the two induced topologies come from different total space mappings; this is exactly the functorial interface that needs to be preserved when接入 Mathlib's standard pullback objects in the future.
+
+This round pushes the same functoriality to the Mathlib entity layer. The theorem
+\texttt{pullback\_comp\_homeomorph} proves: pulling back first along
+$f:C\to B$ then along $g:D\to C$, and direct pullback along $f\circ g$, the two dependent sum total spaces are homeomorphic through the underlying identity function. The fiber terms on both sides are the same, but the induced topologies are constructed in two steps and one step respectively, so the conclusion must be topological homeomorphism rather than literal equality of topological structures.
+The companion theorem \texttt{canonicalPullback\_comp\_fiberwiseEquiv} again records the same base-change associativity at the marked fiber level. This makes "topological space \(\to\) analytic family" functoriality no longer just停留在 a self-contained interface; the next step can define coherent base-change on this structure.
+
+This round continues to push functoriality to the universal property itself. Given a holomorphic classification witness $C$ and continuous base-change
+$g:D\to C$, \texttt{classification\_pullback} defines the pulled-back classification witness:
+its fiberwise biholomorphism at $g(d)$ takes the original witness, and the new classification map is strictly
+
+\[
+  d\longmapsto C.\mathrm{map}(g(d)).
+\]
+
+Therefore it is not just transporting a family on the topology layer, but simultaneously transporting "the family's classification data". The coherence theorem
+\texttt{pullback\_map\_comp} further proves that classification maps from successive pullbacks along
+$g$ then $k$, and direct pullback along $g\circ k$, are equal. This is the first coherence theorem on the universal property interface; the two pullback implementations of the total space are still compared through the aforementioned \texttt{Homeomorph}, and have not been improperly identified as definitional equality.
+
+This round又 pushes this action to the analytic parameter layer. For a differentiable base-change
+$g:D\to C$ on normed complex vector space bases,
+\texttt{DifferentiableFamilyClassification.pullback}复用 the previous holomorphic pullback witness and由复可微 chain rule proves the new classification map
+
+\[
+  d\longmapsto C.\mathrm{map}(g(d))
+\]
+
+is still complex-differentiable. Its companion coherence theorem
+\texttt{pullback\_pullback\_map} proves that two successive differentiable base-changes and one base-change along the composite map give the same classification map. This is a genuine Lean increment from "continuous classification functor" to "analytic classification functor"; it temporarily only covers normed complex vector space bases, the upper half-plane is still represented by ambient
+\texttt{DifferentiableOn} witnesses, and has not yet been disguised as manifold-level holomorphic map theorems.
+
+On the concrete genus-one local model, this round又 closed the test-base composition law. If
+$F$ is a local holomorphic parameter map whose image lies in the uniform local parameter neighborhood, and
+$G$'s image lies in $F$'s domain, then
+\texttt{ComplexTorusLocalHolomorphicParameterMap.precompose} constructs
+$F\circ G$, and Lean proves its upper half-plane range, local neighborhood condition, continuity, and
+\texttt{DifferentiableOn}. Subsequently
+\texttt{complexTorusLocalHolomorphic}
+\allowbreak\texttt{ParameterClassification\_map}
+\allowbreak\texttt{\_eq\_precompose}
+proves: for any holomorphic classification witness of the composed test base, its classification map equals
+
+\[
+  c\longmapsto F\bigl(G(c)\bigr).
+\]
+
+The proof uses not the definition expansion of the classification map, but the previously formalized marking-preserved biholomorphic rigidity; therefore this step接通 "marking rigidity \(\to\) parameter uniqueness" into "test-base composition \(\to\) classification map composition" local moduli functor law.
+The corresponding \texttt{ComplexTorusLocalHolomorphicClassificationWitness.precompose}
+also packages the ambient differentiability certificate. It is still a genus-one local result in the upper half-plane, not equivalent to a global universal family or manifold-level Yoneda theorem for arbitrary genus Teichmüller spaces.
+
+This round further packages this local result as
+\texttt{ComplexTorusLocalFineModuliWitness}. It is not a bare existence proposition, but simultaneously carries:
+an actual holomorphic classification witness; the theorem that every classification map is the explicit
+\texttt{parameterPoint}; and uniqueness of the classification map.
+Its construction
+\texttt{ComplexTorusLocalFineModuliWitness.precompose} proves this certificate is unchanged along admissible test-base base-change.
+In the ambient parameter-map layer, \texttt{compose}, identity-map law, and
+\texttt{precompose\_precompose\_map} again give unit and triple composition coherence at the function level. Therefore, the current
+genus-one local model is no longer just "having a classification map", but possesses fine-moduli data and
+functorial composition laws on the local test category; but quantifiers still only cover this concrete marked complex torus model, and have not yet expanded to global universal families for arbitrary higher-genus analytic families.
+
+\texttt{FiberwiseEquiv} and \texttt{FamilyClassification} further turn the universal property into explicit data. The former gives topology-preserving isomorphisms fiberwise and has实现 identity, inverse, and composition; the latter records classification maps, continuity, and fiber equivalence with canonical pullback. Therefore "equivalence" is no longer just an inoperable proposition, but can be复合 along test families.
+
+Therefore, \texttt{UniversalMarkedFamily} no longer only carries two bare \texttt{Prop} fields, but requires a classification witness for each test family. It has already written Teichmüller's original logic arrows completely
+\[
+  \text{Marked family}\longrightarrow\text{Classification map}\longrightarrow\text{Pullback of universal family},
+\]
+currently the classification witness already uses this canonical induced topology; the next step should prove in Mathlib that it is equivalent to the standard pullback/subspace topology, and upgrade the continuous classification map to a holomorphic map.
+
+The new \texttt{FineUniversalMarkedFamily} separately records uniqueness of the classification map. It is a fine-moduli interface with rigidification, not a theorem automatically推出的 from existing topological fields; only after genuine complex structures, analytic families, and no-automorphism conditions are接入, should it be provided with concrete instances.
+
+This round lifts "analytic family" from a compatibility field in the classification interface to an independent data object.
+\par
+\texttt{Global\allowbreak Holomorphic\allowbreak Marked\allowbreak Family} requires the entire carrier of the dependent sum total space to be given an actual
+\texttt{ComplexSurfaceFamily\allowbreak Atlas}, and simultaneously proves chart coverage of the whole set, atlas topology is the family's total space topology, and atlas projection is the dependent sum projection. Therefore it no longer indirectly represents analytic variation through the old
+\texttt{Family.analyticVariation : Prop}. For the current local parameterized torus pullback,
+\texttt{complexTorusLocalHolomorphicParameter\allowbreak Global\allowbreak Family} is already a concrete instance of this new interface:
+all fibers on the local test base, total space charts, parameter first coordinates, and holomorphic transitions come from previously proven objects.
+
+\texttt{GlobalHolomorphic\allowbreak Family\allowbreak Classification} additionally carries
+a global atlas on the canonical pullback total space, whole-set coverage, topological equality, and projection equality in addition to fiberwise biholomorphic realization; it can forget to the old
+\texttt{HolomorphicFamily\allowbreak Classification}, but the reverse does not automatically hold. \texttt{GlobalFineHolomorphicUniversal\allowbreak Marked\allowbreak Family} then places the universal quantifier strictly on these global analytic family objects and requires uniqueness of the classification map. This way, the original route's arrows
+\[
+  \text{Global analytic marked family}\longrightarrow\text{Global pullback atlas}\longrightarrow\text{Unique classification map}
+\]
+have been accurately written at the type level; the current code only instantiates the local genus-one test family, and does not yet claim global existence for arbitrary higher-genus families, so the true universal family theorem remains a subsequent goal.
+
+This round continues to推进 pullback from "fibers pointwise identical" to a genuine atlas functor. For a base homeomorphism
+\(e:C\mathbin{\xrightarrow{\cong}}B\),
+\texttt{canonicalPullback\_homeomorph} constructs the canonical total space homeomorphism
+\[
+  \begin{aligned}
+  \Sigma_{c:C}F_{e(c)}&\xrightarrow{\cong}\Sigma_{b:B}F_b,\\
+  (c,x)&\longmapsto(e(c),x).
+  \end{aligned}
+\]
+\texttt{ComplexSurfaceChart.transport} and
+\texttt{ComplexSurfaceAtlas.transport} transport each chart along this homeomorphism; Lean has proven that the transported overlap sets are equivalent to the original overlap sets, transition functions are pointwise unchanged, and therefore the original
+\texttt{DifferentiableOn} compatibility is automatically preserved.
+This gives \texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.pullback}: whole-set coverage, total space topology, parameter projection, and global complex atlas are simultaneously preserved;
+\texttt{GlobalHolomorphic\allowbreak Family\allowbreak Classification\allowbreak.ofBaseHomeomorph} further assembles fiberwise identity biholomorphic maps into a global classification witness.
+This step is strictly limited to base homeomorphisms, and does not yet claim that arbitrary continuous or holomorphic base-changes automatically preserve global complex structures, much less that universal families for arbitrary genera have been constructed.
+
+\par
+The next step显式化izes the remaining geometric conditions.
+\texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.Pullback\allowbreak Witness} records an actual global atlas, whole-set coverage, topological equality, and projection equality on the canonical pullback total space for any continuous base-map;
+\texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.pullbackOf} then assembles this witness into a new global analytic family.
+The global classification witness's \texttt{pullbackWithWitness} requires two witnesses: one belonging to the test family's pullback, and one belonging to the universal family's pullback along the composite classification map.
+This is not a technical duplication, but is强制出来的 by the dependent-type fact in the classification structure that "test family atlas" and "universal pullback atlas" are located on different total spaces.
+\texttt{GlobalDifferentiable\allowbreak Family\allowbreak Classification} further requires the classification map to have a genuine
+\texttt{Differentiable\allowbreak} \(\mathbb C\) certificate; under the same pullback witness, the certificate after base-change is obtained by the differentiable composition chain rule.
+Therefore, the current local analytic base-change interface is obtained honestly, but it is not yet claimed that arbitrary continuous or differentiable base-changes automatically have global complex atlases; constructing these witnesses remains the next geometric problem.
+\par
+The open base restriction is now also concretized at the topology and chart layers. \texttt{canonicalPullback\_subtype\_homeomorph}将
+the pullback over a subset \(V\subset B\) homeomorphic to the original total space's subspace
+\[
+  \{x:\operatorname{Total}(F)\mid \pi(x)\in V\},
+\]
+and \texttt{projection\_preimage\_isOpen} proves that when \(V\) is open, this subspace is open.
+On the complex chart side, \texttt{ComplexSurfaceChart\allowbreak.restrictOpenSubspace} restricts a chart to an open subspace and uses the old range's open embedding to construct a new open coordinate range. This already gives the geometric base needed for the next atlas-level restriction theorem.
+
+\section{Formalization Push Four: Mathlib Entity Chain}
+
+The previous self-contained layer solves the problem of "which structures must exist"; this section接通 the same logic to Mathlib's actual objects.
+
+\subsection{Standard Homotopy and Marked Quotients}
+
+\texttt{MathlibTopology.lean} uses Mathlib's \texttt{TopologicalSpace} and \texttt{Homeomorph}. It also uses \texttt{ContinuousMap} to express continuous maps. For a fixed topological reference space \(S\), a marked object's carrier can vary, and the marking is an actual
+\[
+  m:S\xrightarrow{\cong}X.
+\]
+Two objects are compatible if and only if there exists \(e:X\xrightarrow{\cong}Y\) such that
+\[
+  e\circ m_X\simeq m_Y
+\]
+holds, where \(\simeq\) directly uses Mathlib's \texttt{ContinuousMap.Homotopic}. This step no longer needs a custom homotopy closure: Mathlib already provides reversal, concatenation, and equivalence relation theorems on the unit interval. Therefore the code can directly construct
+\[
+  \mathsf{Quotient}(\mathsf{MarkedTopologicalObject}(S)/\mathsf{MarkingRelated}).
+\]
+
+\subsection{Actual Complex Charts}
+
+\texttt{MathlibComplex.lean} fixes the model to \(\mathbb C\). A \texttt{ComplexChart} has an open domain, open range, mutual inverse maps, and bidirectional \texttt{ContinuousOn}; atlas compatibility requires actual transition maps on overlaps to satisfy
+\[
+  \operatorname{DifferentiableOn}(\mathbb C,\,\text{transition},\,\text{overlap}).
+\]
+Thus, \texttt{ComplexRiemannSurface} and \texttt{MarkedComplexRiemannSurface} no longer take "holomorphicity" as an arbitrary placeholder predicate. Furthermore, the code defines coordinate expressions \texttt{ComplexAtlas.chartMap} between two atlases and their domains \texttt{chartMapDomain}, and with actual \texttt{DifferentiableOn} defines \texttt{ChartwiseHolomorphicMap}; bidirectional chart-level conditions are packaged as \texttt{AtlasHolomorphicEquiv}. The code also constructs a global chart of the complex plane, proves its transition map is the identity function, and proves the identity map satisfies chart-level holomorphicity. This is only a consistency model, not a general Riemann surface existence theorem.
+
+\subsection{Topological Skeleton of Actual Analytic Families}
+
+\texttt{MathlibFamily.lean} uses dependent sums to represent total spaces:
+\[
+  \mathcal X=\sum_{b:B}X_b,\qquad \pi(b,x)=b.
+\]
+For \(f:C\to B\), the canonical pullback space is defined through
+\[
+  (c,x)\longmapsto(c,(f(c),x))\in C\times\mathcal X
+\]
+'s Mathlib induced topology. Using continuity of the induced map and continuity of the first projection of the product space, the code proves the pullback projection is continuous; fiberwise \texttt{Homeomorph}, marking exchange equations, classification maps, and fine-moduli uniqueness are all written as composable structural fields.
+
+\clearpage
+\subsection{From Topological Skeleton to Actual Local Trivialization}
+
+The new \texttt{MathlibFiberBundle.lean}接通 the above family to Mathlib's standard fiber bundle API. A
+\texttt{FiberBundleWitness} explicitly gives the model fiber, topological isomorphisms from each fiber to the model, \texttt{Homeomorph} between total space topologies, and Mathlib's \texttt{FiberBundle} instance. Thus each base point $b$ has an actual
+\texttt{Bundle.Trivialization}, and Lean has already proven
+\[
+  b\in e_b.\mathrm{baseSet},
+  \qquad
+  e_b.\mathrm{source}=\pi^{-1}(e_b.\mathrm{baseSet}).
+\]
+This step推进 "local triviality" from the old named field to Mathlib's local product homeomorphism object.
+
+Subsequently, \texttt{HolomorphicFiberBundleWitness} requires each fiber isomorphism to satisfy
+\texttt{AtlasHolomorphicEquiv} on the same model surface; \texttt{AnalyticFamily} packages the family and this data as a new explicit object.
+Therefore "topological fiber bundle" and "chartwise holomorphic variation" are already separated at the type level: the former can be constructed first, the latter must additionally provide
+\texttt{DifferentiableOn} proofs in complex charts. The old \texttt{Family.analyticVariation : Prop} is temporarily retained to maintain compatibility with existing pullback and universal property interfaces; it is no longer误认 as already containing the above concrete data.
+
+Here the boundary that must be retained is: the Mathlib adaptation layer has concretized topology, local trivialization, and chart-level complex differentiation predicates, but has not yet proven that general Teichmüller families can indeed construct these witnesses.
+
+\subsection{Standard Pullback and Complex Structure Transport}
+
+On top of the above topological skeleton, the following implementation is introduced:
+\begin{quote}
+\texttt{pullbackFiberBundle}
+\end{quote}
+It explicitly calls Mathlib's standard \texttt{FiberBundle.pullback}.
+
+To adapt Mathlib's current pullback API's technical requirements for zero-element selection on fibers,
+\texttt{FiberBundleWitness} records model fiber non-emptiness and non-computationally selects a zero element from each fiber's non-emptiness. This is only a library interface implementation condition, and does not误认 surfaces as having a natural algebraic zero-element structure.
+
+For a continuous map $f:C\to B$, \texttt{pullbackLocalTrivialization} gives the actual pullback local trivialization; Lean has proven
+\[
+  \mathrm{baseSet}(f^*e_b)=f^{-1}(\mathrm{baseSet}(e_b)),
+  \qquad
+  c\in\mathrm{baseSet}(f^*e_{f(c)}).
+\]
+Therefore, the pullback is not only true at the fiber type level, but the open base set of local trivializations also传递s by the inverse image functoriality.
+
+In terms of complex structure, \texttt{AtlasHolomorphicEquiv.refl} is constructed from the atlas's own holomorphic transitions.
+
+\texttt{HolomorphicFiberwiseEquiv} requires each fiber's actual \texttt{Homeomorph} to同时 satisfy bidirectional chart-level holomorphicity, and records the fiberwise biholomorphism. Its composition, inverse, and identity instances are provided. The companion
+\texttt{FamilyClassification} records the classification map, continuity, and compatibility with canonical pullback; it packages the old fiberwise equivalence data and the new classification data into a single coherent interface. Thus "equivalence" is no longer just an inoperable proposition, but can be复合 along test families.
+
+Therefore, \texttt{UniversalMarkedFamily} no longer only carries two bare \texttt{Prop} fields, but requires a classification witness for each test family. It has already written Teichmüller's original logic arrows completely
+\[
+  \text{Marked family}\longrightarrow\text{Classification map}\longrightarrow\text{Pullback of universal family},
+\]
+currently the classification witness already uses this canonical induced topology; the next step should prove in Mathlib that it is equivalent to the standard pullback/subspace topology, and upgrade the continuous classification map to a holomorphic map.
+
+The new \texttt{FineUniversalMarkedFamily} separately records uniqueness of the classification map. It is a fine-moduli interface with rigidification, not a theorem automatically推出的 from existing topological fields; only after genuine complex structures, analytic families, and no-automorphism conditions are接入, should it be provided with concrete instances.
+
+This round lifts "analytic family" from a compatibility field in the classification interface to an independent data object.
+\par
+\texttt{Global\allowbreak Holomorphic\allowbreak Marked\allowbreak Family} requires the entire carrier of the dependent sum total space to be given an actual
+\texttt{ComplexSurfaceFamily\allowbreak Atlas}, and simultaneously proves chart coverage of the whole set, atlas topology is the family's total space topology, and atlas projection is the dependent sum projection. Therefore it no longer indirectly represents analytic variation through the old
+\texttt{Family.analyticVariation : Prop}. For the current local parameterized torus pullback,
+\texttt{complexTorusLocalHolomorphicParameter\allowbreak Global\allowbreak Family} is already a concrete instance of this new interface:
+all fibers on the local test base, total space charts, parameter first coordinates, and holomorphic transitions come from previously proven objects.
+
+\texttt{GlobalHolomorphic\allowbreak Family\allowbreak Classification} additionally carries
+a global atlas on the canonical pullback total space, whole-set coverage, topological equality, and projection equality in addition to fiberwise biholomorphic realization; it can forget to the old
+\texttt{HolomorphicFamily\allowbreak Classification}, but the reverse does not automatically hold. \texttt{GlobalFineHolomorphicUniversal\allowbreak Marked\allowbreak Family} then places the universal quantifier strictly on these global analytic family objects and requires uniqueness of the classification map. This way, the original route's arrows
+\[
+  \text{Global analytic marked family}\longrightarrow\text{Global pullback atlas}\longrightarrow\text{Unique classification map}
+\]
+have been accurately written at the type level; the current code only instantiates the local genus-one test family, and does not yet claim global existence for arbitrary higher-genus families, so the true universal family theorem remains a subsequent goal.
+
+This round continues to推进 pullback from "fibers pointwise identical" to a genuine atlas functor. For a base homeomorphism
+\(e:C\mathbin{\xrightarrow{\cong}}B\),
+\texttt{canonicalPullback\_homeomorph} constructs the canonical total space homeomorphism
+\[
+  \begin{aligned}
+  \Sigma_{c:C}F_{e(c)}&\xrightarrow{\cong}\Sigma_{b:B}F_b,\\
+  (c,x)&\longmapsto(e(c),x).
+  \end{aligned}
+\]
+\texttt{ComplexSurfaceChart.transport} and
+\texttt{ComplexSurfaceAtlas.transport} transport each chart along this homeomorphism; Lean has proven that the transported overlap sets are equivalent to the original overlap sets, transition functions are pointwise unchanged, and therefore the original
+\texttt{DifferentiableOn} compatibility is automatically preserved.
+This gives \texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.pullback}: whole-set coverage, total space topology, parameter projection, and global complex atlas are simultaneously preserved;
+\texttt{GlobalHolomorphic\allowbreak Family\allowbreak Classification\allowbreak.ofBaseHomeomorph} further assembles fiberwise identity biholomorphic maps into a global classification witness.
+This step is strictly limited to base homeomorphisms, and does not yet claim that arbitrary continuous or holomorphic base-changes automatically preserve global complex structures, much less that universal families for arbitrary genera have been constructed.
+
+\par
+The next step显式化izes the remaining geometric conditions.
+\texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.Pullback\allowbreak Witness} records an actual global atlas, whole-set coverage, topological equality, and projection equality on the canonical pullback total space for any continuous base-map;
+\texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.pullbackOf} then assembles this witness into a new global analytic family.
+The global classification witness's \texttt{pullbackWithWitness} requires two witnesses: one belonging to the test family's pullback, and one belonging to the universal family's pullback along the composite classification map.
+This is not a technical duplication, but is强制出来的 by the dependent-type fact in the classification structure that "test family atlas" and "universal pullback atlas" are located on different total spaces.
+\texttt{GlobalDifferentiable\allowbreak Family\allowbreak Classification} further requires the classification map to have a genuine
+\texttt{Differentiable\allowbreak} \(\mathbb C\) certificate; under the same pullback witness, the certificate after base-change is obtained by the differentiable composition chain rule.
+Therefore, the current local analytic base-change interface is obtained honestly, but it is not yet claimed that arbitrary continuous or differentiable base-changes automatically have global complex atlases; constructing these witnesses remains the next geometric problem.
+\par
+The open base restriction is now also concretized at the topology and chart layers. \texttt{canonicalPullback\_subtype\_homeomorph}将
+the pullback over a subset \(V\subset B\) homeomorphic to the original total space's subspace
+\[
+  \{x:\operatorname{Total}(F)\mid \pi(x)\in V\},
+\]
+and \texttt{projection\_preimage\_isOpen} proves that when \(V\) is open, this subspace is open.
+On the complex chart side, \texttt{ComplexSurfaceChart\allowbreak.restrictOpenSubspace} restricts a chart to an open subspace and uses the old range's open embedding to construct a new open coordinate range. This already gives the geometric base needed for the next atlas-level restriction theorem.
+
+\section{Formalization Push Five: Mathlib Entity Chain}
+
+The previous self-contained layer solves the problem of "which structures must exist"; this section接通 the same logic to Mathlib's actual objects.
+
+\subsection{Standard Homotopy and Marked Quotients}
+
+\texttt{MathlibTopology.lean} uses Mathlib's \texttt{TopologicalSpace} and \texttt{Homeomorph}. It also uses \texttt{ContinuousMap} to express continuous maps. For a fixed topological reference space \(S\), a marked object's carrier can vary, and the marking is an actual
+\[
+  m:S\xrightarrow{\cong}X.
+\]
+Two objects are compatible if and only if there exists \(e:X\xrightarrow{\cong}Y\) such that
+\[
+  e\circ m_X\simeq m_Y
+\]
+holds, where \(\simeq\) directly uses Mathlib's \texttt{ContinuousMap.Homotopic}. This step no longer needs a custom homotopy closure: Mathlib already provides reversal, concatenation, and equivalence relation theorems on the unit interval. Therefore the code can directly construct
+\[
+  \mathsf{Quotient}(\mathsf{MarkedTopologicalObject}(S)/\mathsf{MarkingRelated}).
+\]
+
+\subsection{Actual Complex Charts}
+
+\texttt{MathlibComplex.lean} fixes the model to \(\mathbb C\). A \texttt{ComplexChart} has an open domain, open range, mutual inverse maps, and bidirectional \texttt{ContinuousOn}; atlas compatibility requires actual transition maps on overlaps to satisfy
+\[
+  \operatorname{DifferentiableOn}(\mathbb C,\,\text{transition},\,\text{overlap}).
+\]
+Thus, \texttt{ComplexRiemannSurface} and \texttt{MarkedComplexRiemannSurface} no longer take "holomorphicity" as an arbitrary placeholder predicate. Furthermore, the code defines coordinate expressions \texttt{ComplexAtlas.chartMap} between two atlases and their domains \texttt{chartMapDomain}, and with actual \texttt{DifferentiableOn} defines \texttt{ChartwiseHolomorphicMap}; bidirectional chart-level conditions are packaged as \texttt{AtlasHolomorphicEquiv}. The code also constructs a global chart of the complex plane, proves its transition map is the identity function, and proves the identity map satisfies chart-level holomorphicity. This is only a consistency model, not a general Riemann surface existence theorem.
+
+\subsection{Topological Skeleton of Actual Analytic Families}
+
+\texttt{MathlibFamily.lean} uses dependent sums to represent total spaces:
+\[
+  \mathcal X=\sum_{b:B}X_b,\qquad \pi(b,x)=b.
+\]
+For \(f:C\to B\), the canonical pullback space is defined through
+\[
+  (c,x)\longmapsto(c,(f(c),x))\in C\times\mathcal X
+\]
+'s Mathlib induced topology. Using continuity of the induced map and continuity of the first projection of the product space, the code proves the pullback projection is continuous; fiberwise \texttt{Homeomorph}, marking exchange equations, classification maps, and fine-moduli uniqueness are all written as composable structural fields.
+
+\clearpage
+\subsection{From Topological Skeleton to Actual Local Trivialization}
+
+The new \texttt{MathlibFiberBundle.lean}接通 the above family to Mathlib's standard fiber bundle API. A
+\texttt{FiberBundleWitness} explicitly gives the model fiber, topological isomorphisms from each fiber to the model, \texttt{Homeomorph} between total space topologies, and Mathlib's \texttt{FiberBundle} instance. Thus each base point $b$ has an actual
+\texttt{Bundle.Trivialization}, and Lean has already proven
+\[
+  b\in e_b.\mathrm{baseSet},
+  \qquad
+  e_b.\mathrm{source}=\pi^{-1}(e_b.\mathrm{baseSet}).
+\]
+This step推进 "local triviality" from the old named field to Mathlib's local product homeomorphism object.
+
+Subsequently, \texttt{HolomorphicFiberBundleWitness} requires each fiber isomorphism to satisfy
+\texttt{AtlasHolomorphicEquiv} on the same model surface; \texttt{AnalyticFamily} packages the family and this data as a new explicit object.
+Therefore "topological fiber bundle" and "chartwise holomorphic variation" are already separated at the type level: the former can be constructed first, the latter must additionally provide
+\texttt{DifferentiableOn} proofs in complex charts. The old \texttt{Family.analyticVariation : Prop} is temporarily retained to maintain compatibility with existing pullback and universal property interfaces; it is no longer误认 as already containing the above concrete data.
+
+Here the boundary that must be retained is: the Mathlib adaptation layer has concretized topology, local trivialization, and chart-level complex differentiation predicates, but has not yet proven that general Teichmüller families can indeed construct these witnesses.
+
+\subsection{Standard Pullback and Complex Structure Transport}
+
+On top of the above topological skeleton, the following implementation is introduced:
+\begin{quote}
+\texttt{pullbackFiberBundle}
+\end{quote}
+It explicitly calls Mathlib's standard \texttt{FiberBundle.pullback}.
+
+To adapt Mathlib's current pullback API's technical requirements for zero-element selection on fibers,
+\texttt{FiberBundleWitness} records model fiber non-emptiness and non-computationally selects a zero element from each fiber's non-emptiness. This is only a library interface implementation condition, and does not误认 surfaces as having a natural algebraic zero-element structure.
+
+For a continuous map $f:C\to B$, \texttt{pullbackLocalTrivialization} gives the actual pullback local trivialization; Lean has proven
+\[
+  \mathrm{baseSet}(f^*e_b)=f^{-1}(\mathrm{baseSet}(e_b)),
+  \qquad
+  c\in\mathrm{baseSet}(f^*e_{f(c)}).
+\]
+Therefore, the pullback is not only true at the fiber type level, but the open base set of local trivializations also传递s by the inverse image functoriality.
+
+In terms of complex structure, \texttt{AtlasHolomorphicEquiv.refl} is constructed from the atlas's own holomorphic transitions.
+
+\texttt{HolomorphicFiberwiseEquiv} requires each fiber's actual \texttt{Homeomorph} to同时 satisfy bidirectional chart-level holomorphicity, and records the fiberwise biholomorphism. Its composition, inverse, and identity instances are provided. The companion
+\texttt{FamilyClassification} records the classification map, continuity, and compatibility with canonical pullback; it packages the old fiberwise equivalence data and the new classification data into a single coherent interface. Thus "equivalence" is no longer just an inoperable proposition, but can be复合 along test families.
+
+Therefore, \texttt{UniversalMarkedFamily} no longer only carries two bare \texttt{Prop} fields, but requires a classification witness for each test family. It has already written Teichmüller's original logic arrows completely
+\[
+  \text{Marked family}\longrightarrow\text{Classification map}\longrightarrow\text{Pullback of universal family},
+\]
+currently the classification witness already uses this canonical induced topology; the next step should prove in Mathlib that it is equivalent to the standard pullback/subspace topology, and upgrade the continuous classification map to a holomorphic map.
+
+The new \texttt{FineUniversalMarkedFamily} separately records uniqueness of the classification map. It is a fine-moduli interface with rigidification, not a theorem automatically推出的 from existing topological fields; only after genuine complex structures, analytic families, and no-automorphism conditions are接入, should it be provided with concrete instances.
+
+This round lifts "analytic family" from a compatibility field in the classification interface to an independent data object.
+\par
+\texttt{Global\allowbreak Holomorphic\allowbreak Marked\allowbreak Family} requires the entire carrier of the dependent sum total space to be given an actual
+\texttt{ComplexSurfaceFamily\allowbreak Atlas}, and simultaneously proves chart coverage of the whole set, atlas topology is the family's total space topology, and atlas projection is the dependent sum projection. Therefore it no longer indirectly represents analytic variation through the old
+\texttt{Family.analyticVariation : Prop}. For the current local parameterized torus pullback,
+\texttt{complexTorusLocalHolomorphicParameter\allowbreak Global\allowbreak Family} is already a concrete instance of this new interface:
+all fibers on the local test base, total space charts, parameter first coordinates, and holomorphic transitions come from previously proven objects.
+
+\texttt{GlobalHolomorphic\allowbreak Family\allowbreak Classification} additionally carries
+a global atlas on the canonical pullback total space, whole-set coverage, topological equality, and projection equality in addition to fiberwise biholomorphic realization; it can forget to the old
+\texttt{HolomorphicFamily\allowbreak Classification}, but the reverse does not automatically hold. \texttt{GlobalFineHolomorphicUniversal\allowbreak Marked\allowbreak Family} then places the universal quantifier strictly on these global analytic family objects and requires uniqueness of the classification map. This way, the original route's arrows
+\[
+  \text{Global analytic marked family}\longrightarrow\text{Global pullback atlas}\longrightarrow\text{Unique classification map}
+\]
+have been accurately written at the type level; the current code only instantiates the local genus-one test family, and does not yet claim global existence for arbitrary higher-genus families, so the true universal family theorem remains a subsequent goal.
+
+This round continues to推进 pullback from "fibers pointwise identical" to a genuine atlas functor. For a base homeomorphism
+\(e:C\mathbin{\xrightarrow{\cong}}B\),
+\texttt{canonicalPullback\_homeomorph} constructs the canonical total space homeomorphism
+\[
+  \begin{aligned}
+  \Sigma_{c:C}F_{e(c)}&\xrightarrow{\cong}\Sigma_{b:B}F_b,\\
+  (c,x)&\longmapsto(e(c),x).
+  \end{aligned}
+\]
+\texttt{ComplexSurfaceChart.transport} and
+\texttt{ComplexSurfaceAtlas.transport} transport each chart along this homeomorphism; Lean has proven that the transported overlap sets are equivalent to the original overlap sets, transition functions are pointwise unchanged, and therefore the original
+\texttt{DifferentiableOn} compatibility is automatically preserved.
+This gives \texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.pullback}: whole-set coverage, total space topology, parameter projection, and global complex atlas are simultaneously preserved;
+\texttt{GlobalHolomorphic\allowbreak Family\allowbreak Classification\allowbreak.ofBaseHomeomorph} further assembles fiberwise identity biholomorphic maps into a global classification witness.
+This step is strictly limited to base homeomorphisms, and does not yet claim that arbitrary continuous or holomorphic base-changes automatically preserve global complex structures, much less that universal families for arbitrary genera have been constructed.
+
+\par
+The next step显式化izes the remaining geometric conditions.
+\texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.Pullback\allowbreak Witness} records an actual global atlas, whole-set coverage, topological equality, and projection equality on the canonical pullback total space for any continuous base-map;
+\texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.pullbackOf} then assembles this witness into a new global analytic family.
+The global classification witness's \texttt{pullbackWithWitness} requires two witnesses: one belonging to the test family's pullback, and one belonging to the universal family's pullback along the composite classification map.
+This is not a technical duplication, but is强制出来的 by the dependent-type fact in the classification structure that "test family atlas" and "universal pullback atlas" are located on different total spaces.
+\texttt{GlobalDifferentiable\allowbreak Family\allowbreak Classification} further requires the classification map to have a genuine
+\texttt{Differentiable\allowbreak} \(\mathbb C\) certificate; under the same pullback witness, the certificate after base-change is obtained by the differentiable composition chain rule.
+Therefore, the current local analytic base-change interface is obtained honestly, but it is not yet claimed that arbitrary continuous or differentiable base-changes automatically have global complex atlases; constructing these witnesses remains the next geometric problem.
+\par
+The open base restriction is now also concretized at the topology and chart layers. \texttt{canonicalPullback\_subtype\_homeomorph}将
+the pullback over a subset \(V\subset B\) homeomorphic to the original total space's subspace
+\[
+  \{x:\operatorname{Total}(F)\mid \pi(x)\in V\},
+\]
+and \texttt{projection\_preimage\_isOpen} proves that when \(V\) is open, this subspace is open.
+On the complex chart side, \texttt{ComplexSurfaceChart\allowbreak.restrictOpenSubspace} restricts a chart to an open subspace and uses the old range's open embedding to construct a new open coordinate range. This already gives the geometric base needed for the next atlas-level restriction theorem.
+
+\section{Formalization Push Six: Mathlib Entity Chain}
+
+The previous self-contained layer solves the problem of "which structures must exist"; this section接通 the same logic to Mathlib's actual objects.
+
+\subsection{Standard Homotopy and Marked Quotients}
+
+\texttt{MathlibTopology.lean} uses Mathlib's \texttt{TopologicalSpace} and \texttt{Homeomorph}. It also uses \texttt{ContinuousMap} to express continuous maps. For a fixed topological reference space \(S\), a marked object's carrier can vary, and the marking is an actual
+\[
+  m:S\xrightarrow{\cong}X.
+\]
+Two objects are compatible if and only if there exists \(e:X\xrightarrow{\cong}Y\) such that
+\[
+  e\circ m_X\simeq m_Y
+\]
+holds, where \(\simeq\) directly uses Mathlib's \texttt{ContinuousMap.Homotopic}. This step no longer needs a custom homotopy closure: Mathlib already provides reversal, concatenation, and equivalence relation theorems on the unit interval. Therefore the code can directly construct
+\[
+  \mathsf{Quotient}(\mathsf{MarkedTopologicalObject}(S)/\mathsf{MarkingRelated}).
+\]
+
+\subsection{Actual Complex Charts}
+
+\texttt{MathlibComplex.lean} fixes the model to \(\mathbb C\). A \texttt{ComplexChart} has an open domain, open range, mutual inverse maps, and bidirectional \texttt{ContinuousOn}; atlas compatibility requires actual transition maps on overlaps to satisfy
+\[
+  \operatorname{DifferentiableOn}(\mathbb C,\,\text{transition},\,\text{overlap}).
+\]
+Thus, \texttt{ComplexRiemannSurface} and \texttt{MarkedComplexRiemannSurface} no longer take "holomorphicity" as an arbitrary placeholder predicate. Furthermore, the code defines coordinate expressions \texttt{ComplexAtlas.chartMap} between two atlases and their domains \texttt{chartMapDomain}, and with actual \texttt{DifferentiableOn} defines \texttt{ChartwiseHolomorphicMap}; bidirectional chart-level conditions are packaged as \texttt{AtlasHolomorphicEquiv}. The code also constructs a global chart of the complex plane, proves its transition map is the identity function, and proves the identity map satisfies chart-level holomorphicity. This is only a consistency model, not a general Riemann surface existence theorem.
+
+\subsection{Topological Skeleton of Actual Analytic Families}
+
+\texttt{MathlibFamily.lean} uses dependent sums to represent total spaces:
+\[
+  \mathcal X=\sum_{b:B}X_b,\qquad \pi(b,x)=b.
+\]
+For \(f:C\to B\), the canonical pullback space is defined through
+\[
+  (c,x)\longmapsto(c,(f(c),x))\in C\times\mathcal X
+\]
+'s Mathlib induced topology. Using continuity of the induced map and continuity of the first projection of the product space, the code proves the pullback projection is continuous; fiberwise \texttt{Homeomorph}, marking exchange equations, classification maps, and fine-moduli uniqueness are all written as composable structural fields.
+
+\clearpage
+\subsection{From Topological Skeleton to Actual Local Trivialization}
+
+The new \texttt{MathlibFiberBundle.lean}接通 the above family to Mathlib's standard fiber bundle API. A
+\texttt{FiberBundleWitness} explicitly gives the model fiber, topological isomorphisms from each fiber to the model, \texttt{Homeomorph} between total space topologies, and Mathlib's \texttt{FiberBundle} instance. Thus each base point $b$ has an actual
+\texttt{Bundle.Trivialization}, and Lean has already proven
+\[
+  b\in e_b.\mathrm{baseSet},
+  \qquad
+  e_b.\mathrm{source}=\pi^{-1}(e_b.\mathrm{baseSet}).
+\]
+This step推进 "local triviality" from the old named field to Mathlib's local product homeomorphism object.
+
+Subsequently, \texttt{HolomorphicFiberBundleWitness} requires each fiber isomorphism to satisfy
+\texttt{AtlasHolomorphicEquiv} on the same model surface; \texttt{AnalyticFamily} packages the family and this data as a new explicit object.
+Therefore "topological fiber bundle" and "chartwise holomorphic variation" are already separated at the type level: the former can be constructed first, the latter must additionally provide
+\texttt{DifferentiableOn} proofs in complex charts. The old \texttt{Family.analyticVariation : Prop} is temporarily retained to maintain compatibility with existing pullback and universal property interfaces; it is no longer误认 as already containing the above concrete data.
+
+Here the boundary that must be retained is: the Mathlib adaptation layer has concretized topology, local trivialization, and chart-level complex differentiation predicates, but has not yet proven that general Teichmüller families can indeed construct these witnesses.
+
+\subsection{Standard Pullback and Complex Structure Transport}
+
+On top of the above topological skeleton, the following implementation is introduced:
+\begin{quote}
+\texttt{pullbackFiberBundle}
+\end{quote}
+It explicitly calls Mathlib's standard \texttt{FiberBundle.pullback}.
+
+To adapt Mathlib's current pullback API's technical requirements for zero-element selection on fibers,
+\texttt{FiberBundleWitness} records model fiber non-emptiness and non-computationally selects a zero element from each fiber's non-emptiness. This is only a library interface implementation condition, and does not误认 surfaces as having a natural algebraic zero-element structure.
+
+For a continuous map $f:C\to B$, \texttt{pullbackLocalTrivialization} gives the actual pullback local trivialization; Lean has proven
+\[
+  \mathrm{baseSet}(f^*e_b)=f^{-1}(\mathrm{baseSet}(e_b)),
+  \qquad
+  c\in\mathrm{baseSet}(f^*e_{f(c)}).
+\]
+Therefore, the pullback is not only true at the fiber type level, but the open base set of local trivializations also传递s by the inverse image functoriality.
+
+In terms of complex structure, \texttt{AtlasHolomorphicEquiv.refl} is constructed from the atlas's own holomorphic transitions.
+
+\texttt{HolomorphicFiberwiseEquiv} requires each fiber's actual \texttt{Homeomorph} to同时 satisfy bidirectional chart-level holomorphicity, and records the fiberwise biholomorphism. Its composition, inverse, and identity instances are provided. The companion
+\texttt{FamilyClassification} records the classification map, continuity, and compatibility with canonical pullback; it packages the old fiberwise equivalence data and the new classification data into a single coherent interface. Thus "equivalence" is no longer just an inoperable proposition, but can be复合 along test families.
+
+Therefore, \texttt{UniversalMarkedFamily} no longer only carries two bare \texttt{Prop} fields, but requires a classification witness for each test family. It has already written Teichmüller's original logic arrows completely
+\[
+  \text{Marked family}\longrightarrow\text{Classification map}\longrightarrow\text{Pullback of universal family},
+\]
+currently the classification witness already uses this canonical induced topology; the next step should prove in Mathlib that it is equivalent to the standard pullback/subspace topology, and upgrade the continuous classification map to a holomorphic map.
+
+The new \texttt{FineUniversalMarkedFamily} separately records uniqueness of the classification map. It is a fine-moduli interface with rigidification, not a theorem automatically推出的 from existing topological fields; only after genuine complex structures, analytic families, and no-automorphism conditions are接入, should it be provided with concrete instances.
+
+This round lifts "analytic family" from a compatibility field in the classification interface to an independent data object.
+\par
+\texttt{Global\allowbreak Holomorphic\allowbreak Marked\allowbreak Family} requires the entire carrier of the dependent sum total space to be given an actual
+\texttt{ComplexSurfaceFamily\allowbreak Atlas}, and simultaneously proves chart coverage of the whole set, atlas topology is the family's total space topology, and atlas projection is the dependent sum projection. Therefore it no longer indirectly represents analytic variation through the old
+\texttt{Family.analyticVariation : Prop}. For the current local parameterized torus pullback,
+\texttt{complexTorusLocalHolomorphicParameter\allowbreak Global\allowbreak Family} is already a concrete instance of this new interface:
+all fibers on the local test base, total space charts, parameter first coordinates, and holomorphic transitions come from previously proven objects.
+
+\texttt{GlobalHolomorphic\allowbreak Family\allowbreak Classification} additionally carries
+a global atlas on the canonical pullback total space, whole-set coverage, topological equality, and projection equality in addition to fiberwise biholomorphic realization; it can forget to the old
+\texttt{HolomorphicFamily\allowbreak Classification}, but the reverse does not automatically hold. \texttt{GlobalFineHolomorphicUniversal\allowbreak Marked\allowbreak Family} then places the universal quantifier strictly on these global analytic family objects and requires uniqueness of the classification map. This way, the original route's arrows
+\[
+  \text{Global analytic marked family}\longrightarrow\text{Global pullback atlas}\longrightarrow\text{Unique classification map}
+\]
+have been accurately written at the type level; the current code only instantiates the local genus-one test family, and does not yet claim global existence for arbitrary higher-genus families, so the true universal family theorem remains a subsequent goal.
+
+This round continues to推进 pullback from "fibers pointwise identical" to a genuine atlas functor. For a base homeomorphism
+\(e:C\mathbin{\xrightarrow{\cong}}B\),
+\texttt{canonicalPullback\_homeomorph} constructs the canonical total space homeomorphism
+\[
+  \begin{aligned}
+  \Sigma_{c:C}F_{e(c)}&\xrightarrow{\cong}\Sigma_{b:B}F_b,\\
+  (c,x)&\longmapsto(e(c),x).
+  \end{aligned}
+\]
+\texttt{ComplexSurfaceChart.transport} and
+\texttt{ComplexSurfaceAtlas.transport} transport each chart along this homeomorphism; Lean has proven that the transported overlap sets are equivalent to the original overlap sets, transition functions are pointwise unchanged, and therefore the original
+\texttt{DifferentiableOn} compatibility is automatically preserved.
+This gives \texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.pullback}: whole-set coverage, total space topology, parameter projection, and global complex atlas are simultaneously preserved;
+\texttt{GlobalHolomorphic\allowbreak Family\allowbreak Classification\allowbreak.ofBaseHomeomorph} further assembles fiberwise identity biholomorphic maps into a global classification witness.
+This step is strictly limited to base homeomorphisms, and does not yet claim that arbitrary continuous or holomorphic base-changes automatically preserve global complex structures, much less that universal families for arbitrary genera have been constructed.
+
+\par
+The next step显式化izes the remaining geometric conditions.
+\texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.Pullback\allowbreak Witness} records an actual global atlas, whole-set coverage, topological equality, and projection equality on the canonical pullback total space for any continuous base-map;
+\texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.pullbackOf} then assembles this witness into a new global analytic family.
+The global classification witness's \texttt{pullbackWithWitness} requires two witnesses: one belonging to the test family's pullback, and one belonging to the universal family's pullback along the composite classification map.
+This is not a technical duplication, but is强制出来的 by the dependent-type fact in the classification structure that "test family atlas" and "universal pullback atlas" are located on different total spaces.
+\texttt{GlobalDifferentiable\allowbreak Family\allowbreak Classification} further requires the classification map to have a genuine
+\texttt{Differentiable\allowbreak} \(\mathbb C\) certificate; under the same pullback witness, the certificate after base-change is obtained by the differentiable composition chain rule.
+Therefore, the current local analytic base-change interface is obtained honestly, but it is not yet claimed that arbitrary continuous or differentiable base-changes automatically have global complex atlases; constructing these witnesses remains the next geometric problem.
+\par
+The open base restriction is now also concretized at the topology and chart layers. \texttt{canonicalPullback\_subtype\_homeomorph}将
+the pullback over a subset \(V\subset B\) homeomorphic to the original total space's subspace
+\[
+  \{x:\operatorname{Total}(F)\mid \pi(x)\in V\},
+\]
+and \texttt{projection\_preimage\_isOpen} proves that when \(V\) is open, this subspace is open.
+On the complex chart side, \texttt{ComplexSurfaceChart\allowbreak.restrictOpenSubspace} restricts a chart to an open subspace and uses the old range's open embedding to construct a new open coordinate range. This already gives the geometric base needed for the next atlas-level restriction theorem.
+
+\section{Formalization Push Seven: Mathlib Entity Chain}
+
+The previous self-contained layer solves the problem of "which structures must exist"; this section接通 the same logic to Mathlib's actual objects.
+
+\subsection{Standard Homotopy and Marked Quotients}
+
+\texttt{MathlibTopology.lean} uses Mathlib's \texttt{TopologicalSpace} and \texttt{Homeomorph}. It also uses \texttt{ContinuousMap} to express continuous maps. For a fixed topological reference space \(S\), a marked object's carrier can vary, and the marking is an actual
+\[
+  m:S\xrightarrow{\cong}X.
+\]
+Two objects are compatible if and only if there exists \(e:X\xrightarrow{\cong}Y\) such that
+\[
+  e\circ m_X\simeq m_Y
+\]
+holds, where \(\simeq\) directly uses Mathlib's \texttt{ContinuousMap.Homotopic}. This step no longer needs a custom homotopy closure: Mathlib already provides reversal, concatenation, and equivalence relation theorems on the unit interval. Therefore the code can directly construct
+\[
+  \mathsf{Quotient}(\mathsf{MarkedTopologicalObject}(S)/\mathsf{MarkingRelated}).
+\]
+
+\subsection{Actual Complex Charts}
+
+\texttt{MathlibComplex.lean} fixes the model to \(\mathbb C\). A \texttt{ComplexChart} has an open domain, open range, mutual inverse maps, and bidirectional \texttt{ContinuousOn}; atlas compatibility requires actual transition maps on overlaps to satisfy
+\[
+  \operatorname{DifferentiableOn}(\mathbb C,\,\text{transition},\,\text{overlap}).
+\]
+Thus, \texttt{ComplexRiemannSurface} and \texttt{MarkedComplexRiemannSurface} no longer take "holomorphicity" as an arbitrary placeholder predicate. Furthermore, the code defines coordinate expressions \texttt{ComplexAtlas.chartMap} between two atlases and their domains \texttt{chartMapDomain}, and with actual \texttt{DifferentiableOn} defines \texttt{ChartwiseHolomorphicMap}; bidirectional chart-level conditions are packaged as \texttt{AtlasHolomorphicEquiv}. The code also constructs a global chart of the complex plane, proves its transition map is the identity function, and proves the identity map satisfies chart-level holomorphicity. This is only a consistency model, not a general Riemann surface existence theorem.
+
+\subsection{Topological Skeleton of Actual Analytic Families}
+
+\texttt{MathlibFamily.lean} uses dependent sums to represent total spaces:
+\[
+  \mathcal X=\sum_{b:B}X_b,\qquad \pi(b,x)=b.
+\]
+For \(f:C\to B\), the canonical pullback space is defined through
+\[
+  (c,x)\longmapsto(c,(f(c),x))\in C\times\mathcal X
+\]
+'s Mathlib induced topology. Using continuity of the induced map and continuity of the first projection of the product space, the code proves the pullback projection is continuous; fiberwise \texttt{Homeomorph}, marking exchange equations, classification maps, and fine-moduli uniqueness are all written as composable structural fields.
+
+\clearpage
+\subsection{From Topological Skeleton to Actual Local Trivialization}
+
+The new \texttt{MathlibFiberBundle.lean}接通 the above family to Mathlib's standard fiber bundle API. A
+\texttt{FiberBundleWitness} explicitly gives the model fiber, topological isomorphisms from each fiber to the model, \texttt{Homeomorph} between total space topologies, and Mathlib's \texttt{FiberBundle} instance. Thus each base point $b$ has an actual
+\texttt{Bundle.Trivialization}, and Lean has already proven
+\[
+  b\in e_b.\mathrm{baseSet},
+  \qquad
+  e_b.\mathrm{source}=\pi^{-1}(e_b.\mathrm{baseSet}).
+\]
+This step推进 "local triviality" from the old named field to Mathlib's local product homeomorphism object.
+
+Subsequently, \texttt{HolomorphicFiberBundleWitness} requires each fiber isomorphism to satisfy
+\texttt{AtlasHolomorphicEquiv} on the same model surface; \texttt{AnalyticFamily} packages the family and this data as a new explicit object.
+Therefore "topological fiber bundle" and "chartwise holomorphic variation" are already separated at the type level: the former can be constructed first, the latter must additionally provide
+\texttt{DifferentiableOn} proofs in complex charts. The old \texttt{Family.analyticVariation : Prop} is temporarily retained to maintain compatibility with existing pullback and universal property interfaces; it is no longer误认 as already containing the above concrete data.
+
+Here the boundary that must be retained is: the Mathlib adaptation layer has concretized topology, local trivialization, and chart-level complex differentiation predicates, but has not yet proven that general Teichmüller families can indeed construct these witnesses.
+
+\subsection{Standard Pullback and Complex Structure Transport}
+
+On top of the above topological skeleton, the following implementation is introduced:
+\begin{quote}
+\texttt{pullbackFiberBundle}
+\end{quote}
+It explicitly calls Mathlib's standard \texttt{FiberBundle.pullback}.
+
+To adapt Mathlib's current pullback API's technical requirements for zero-element selection on fibers,
+\texttt{FiberBundleWitness} records model fiber non-emptiness and non-computationally selects a zero element from each fiber's non-emptiness. This is only a library interface implementation condition, and does not误认 surfaces as having a natural algebraic zero-element structure.
+
+For a continuous map $f:C\to B$, \texttt{pullbackLocalTrivialization} gives the actual pullback local trivialization; Lean has proven
+\[
+  \mathrm{baseSet}(f^*e_b)=f^{-1}(\mathrm{baseSet}(e_b)),
+  \qquad
+  c\in\mathrm{baseSet}(f^*e_{f(c)}).
+\]
+Therefore, the pullback is not only true at the fiber type level, but the open base set of local trivializations also传递s by the inverse image functoriality.
+
+In terms of complex structure, \texttt{AtlasHolomorphicEquiv.refl} is constructed from the atlas's own holomorphic transitions.
+
+\texttt{HolomorphicFiberwiseEquiv} requires each fiber's actual \texttt{Homeomorph} to同时 satisfy bidirectional chart-level holomorphicity, and records the fiberwise biholomorphism. Its composition, inverse, and identity instances are provided. The companion
+\texttt{FamilyClassification} records the classification map, continuity, and compatibility with canonical pullback; it packages the old fiberwise equivalence data and the new classification data into a single coherent interface. Thus "equivalence" is no longer just an inoperable proposition, but can be复合 along test families.
+
+Therefore, \texttt{UniversalMarkedFamily} no longer only carries two bare \texttt{Prop} fields, but requires a classification witness for each test family. It has already written Teichmüller's original logic arrows completely
+\[
+  \text{Marked family}\longrightarrow\text{Classification map}\longrightarrow\text{Pullback of universal family},
+\]
+currently the classification witness already uses this canonical induced topology; the next step should prove in Mathlib that it is equivalent to the standard pullback/subspace topology, and upgrade the continuous classification map to a holomorphic map.
+
+The new \texttt{FineUniversalMarkedFamily} separately records uniqueness of the classification map. It is a fine-moduli interface with rigidification, not a theorem automatically推出的 from existing topological fields; only after genuine complex structures, analytic families, and no-automorphism conditions are接入, should it be provided with concrete instances.
+
+This round lifts "analytic family" from a compatibility field in the classification interface to an independent data object.
+\par
+\texttt{Global\allowbreak Holomorphic\allowbreak Marked\allowbreak Family} requires the entire carrier of the dependent sum total space to be given an actual
+\texttt{ComplexSurfaceFamily\allowbreak Atlas}, and simultaneously proves chart coverage of the whole set, atlas topology is the family's total space topology, and atlas projection is the dependent sum projection. Therefore it no longer indirectly represents analytic variation through the old
+\texttt{Family.analyticVariation : Prop}. For the current local parameterized torus pullback,
+\texttt{complexTorusLocalHolomorphicParameter\allowbreak Global\allowbreak Family} is already a concrete instance of this new interface:
+all fibers on the local test base, total space charts, parameter first coordinates, and holomorphic transitions come from previously proven objects.
+
+\texttt{GlobalHolomorphic\allowbreak Family\allowbreak Classification} additionally carries
+a global atlas on the canonical pullback total space, whole-set coverage, topological equality, and projection equality in addition to fiberwise biholomorphic realization; it can forget to the old
+\texttt{HolomorphicFamily\allowbreak Classification}, but the reverse does not automatically hold. \texttt{GlobalFineHolomorphicUniversal\allowbreak Marked\allowbreak Family} then places the universal quantifier strictly on these global analytic family objects and requires uniqueness of the classification map. This way, the original route's arrows
+\[
+  \text{Global analytic marked family}\longrightarrow\text{Global pullback atlas}\longrightarrow\text{Unique classification map}
+\]
+have been accurately written at the type level; the current code only instantiates the local genus-one test family, and does not yet claim global existence for arbitrary higher-genus families, so the true universal family theorem remains a subsequent goal.
+
+This round continues to推进 pullback from "fibers pointwise identical" to a genuine atlas functor. For a base homeomorphism
+\(e:C\mathbin{\xrightarrow{\cong}}B\),
+\texttt{canonicalPullback\_homeomorph} constructs the canonical total space homeomorphism
+\[
+  \begin{aligned}
+  \Sigma_{c:C}F_{e(c)}&\xrightarrow{\cong}\Sigma_{b:B}F_b,\\
+  (c,x)&\longmapsto(e(c),x).
+  \end{aligned}
+\]
+\texttt{ComplexSurfaceChart.transport} and
+\texttt{ComplexSurfaceAtlas.transport} transport each chart along this homeomorphism; Lean has proven that the transported overlap sets are equivalent to the original overlap sets, transition functions are pointwise unchanged, and therefore the original
+\texttt{DifferentiableOn} compatibility is automatically preserved.
+This gives \texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.pullback}: whole-set coverage, total space topology, parameter projection, and global complex atlas are simultaneously preserved;
+\texttt{GlobalHolomorphic\allowbreak Family\allowbreak Classification\allowbreak.ofBaseHomeomorph} further assembles fiberwise identity biholomorphic maps into a global classification witness.
+This step is strictly limited to base homeomorphisms, and does not yet claim that arbitrary continuous or holomorphic base-changes automatically preserve global complex structures, much less that universal families for arbitrary genera have been constructed.
+
+\par
+The next step显式化izes the remaining geometric conditions.
+\texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.Pullback\allowbreak Witness} records an actual global atlas, whole-set coverage, topological equality, and projection equality on the canonical pullback total space for any continuous base-map;
+\texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.pullbackOf} then assembles this witness into a new global analytic family.
+The global classification witness's \texttt{pullbackWithWitness} requires two witnesses: one belonging to the test family's pullback, and one belonging to the universal family's pullback along the composite classification map.
+This is not a technical duplication, but is强制出来的 by the dependent-type fact in the classification structure that "test family atlas" and "universal pullback atlas" are located on different total spaces.
+\texttt{GlobalDifferentiable\allowbreak Family\allowbreak Classification} further requires the classification map to have a genuine
+\texttt{Differentiable\allowbreak} \(\mathbb C\) certificate; under the same pullback witness, the certificate after base-change is obtained by the differentiable composition chain rule.
+Therefore, the current local analytic base-change interface is obtained honestly, but it is not yet claimed that arbitrary continuous or differentiable base-changes automatically have global complex atlases; constructing these witnesses remains the next geometric problem.
+\par
+The open base restriction is now also concretized at the topology and chart layers. \texttt{canonicalPullback\_subtype\_homeomorph}将
+the pullback over a subset \(V\subset B\) homeomorphic to the original total space's subspace
+\[
+  \{x:\operatorname{Total}(F)\mid \pi(x)\in V\},
+\]
+and \texttt{projection\_preimage\_isOpen} proves that when \(V\) is open, this subspace is open.
+On the complex chart side, \texttt{ComplexSurfaceChart\allowbreak.restrictOpenSubspace} restricts a chart to an open subspace and uses the old range's open embedding to construct a new open coordinate range. This already gives the geometric base needed for the next atlas-level restriction theorem.
+
+\section{Formalization Push Eight: Mathlib Entity Chain}
+
+The previous self-contained layer solves the problem of "which structures must exist"; this section接通 the same logic to Mathlib's actual objects.
+
+\subsection{Standard Homotopy and Marked Quotients}
+
+\texttt{MathlibTopology.lean} uses Mathlib's \texttt{TopologicalSpace} and \texttt{Homeomorph}. It also uses \texttt{ContinuousMap} to express continuous maps. For a fixed topological reference space \(S\), a marked object's carrier can vary, and the marking is an actual
+\[
+  m:S\xrightarrow{\cong}X.
+\]
+Two objects are compatible if and only if there exists \(e:X\xrightarrow{\cong}Y\) such that
+\[
+  e\circ m_X\simeq m_Y
+\]
+holds, where \(\simeq\) directly uses Mathlib's \texttt{ContinuousMap.Homotopic}. This step no longer needs a custom homotopy closure: Mathlib already provides reversal, concatenation, and equivalence relation theorems on the unit interval. Therefore the code can directly construct
+\[
+  \mathsf{Quotient}(\mathsf{MarkedTopologicalObject}(S)/\mathsf{MarkingRelated}).
+\]
+
+\subsection{Actual Complex Charts}
+
+\texttt{MathlibComplex.lean} fixes the model to \(\mathbb C\). A \texttt{ComplexChart} has an open domain, open range, mutual inverse maps, and bidirectional \texttt{ContinuousOn}; atlas compatibility requires actual transition maps on overlaps to satisfy
+\[
+  \operatorname{DifferentiableOn}(\mathbb C,\,\text{transition},\,\text{overlap}).
+\]
+Thus, \texttt{ComplexRiemannSurface} and \texttt{MarkedComplexRiemannSurface} no longer take "holomorphicity" as an arbitrary placeholder predicate. Furthermore, the code defines coordinate expressions \texttt{ComplexAtlas.chartMap} between two atlases and their domains \texttt{chartMapDomain}, and with actual \texttt{DifferentiableOn} defines \texttt{ChartwiseHolomorphicMap}; bidirectional chart-level conditions are packaged as \texttt{AtlasHolomorphicEquiv}. The code also constructs a global chart of the complex plane, proves its transition map is the identity function, and proves the identity map satisfies chart-level holomorphicity. This is only a consistency model, not a general Riemann surface existence theorem.
+
+\subsection{Topological Skeleton of Actual Analytic Families}
+
+\texttt{MathlibFamily.lean} uses dependent sums to represent total spaces:
+\[
+  \mathcal X=\sum_{b:B}X_b,\qquad \pi(b,x)=b.
+\]
+For \(f:C\to B\), the canonical pullback space is defined through
+\[
+  (c,x)\longmapsto(c,(f(c),x))\in C\times\mathcal X
+\]
+'s Mathlib induced topology. Using continuity of the induced map and continuity of the first projection of the product space, the code proves the pullback projection is continuous; fiberwise \texttt{Homeomorph}, marking exchange equations, classification maps, and fine-moduli uniqueness are all written as composable structural fields.
+
+\clearpage
+\subsection{From Topological Skeleton to Actual Local Trivialization}
+
+The new \texttt{MathlibFiberBundle.lean}接通 the above family to Mathlib's standard fiber bundle API. A
+\texttt{FiberBundleWitness} explicitly gives the model fiber, topological isomorphisms from each fiber to the model, \texttt{Homeomorph} between total space topologies, and Mathlib's \texttt{FiberBundle} instance. Thus each base point $b$ has an actual
+\texttt{Bundle.Trivialization}, and Lean has already proven
+\[
+  b\in e_b.\mathrm{baseSet},
+  \qquad
+  e_b.\mathrm{source}=\pi^{-1}(e_b.\mathrm{baseSet}).
+\]
+This step推进 "local triviality" from the old named field to Mathlib's local product homeomorphism object.
+
+Subsequently, \texttt{HolomorphicFiberBundleWitness} requires each fiber isomorphism to satisfy
+\texttt{AtlasHolomorphicEquiv} on the same model surface; \texttt{AnalyticFamily} packages the family and this data as a new explicit object.
+Therefore "topological fiber bundle" and "chartwise holomorphic variation" are already separated at the type level: the former can be constructed first, the latter must additionally provide
+\texttt{DifferentiableOn} proofs in complex charts. The old \texttt{Family.analyticVariation : Prop} is temporarily retained to maintain compatibility with existing pullback and universal property interfaces; it is no longer误认 as already containing the above concrete data.
+
+Here the boundary that must be retained is: the Mathlib adaptation layer has concretized topology, local trivialization, and chart-level complex differentiation predicates, but has not yet proven that general Teichmüller families can indeed construct these witnesses.
+
+\subsection{Standard Pullback and Complex Structure Transport}
+
+On top of the above topological skeleton, the following implementation is introduced:
+\begin{quote}
+\texttt{pullbackFiberBundle}
+\end{quote}
+It explicitly calls Mathlib's standard \texttt{FiberBundle.pullback}.
+
+To adapt Mathlib's current pullback API's technical requirements for zero-element selection on fibers,
+\texttt{FiberBundleWitness} records model fiber non-emptiness and non-computationally selects a zero element from each fiber's non-emptiness. This is only a library interface implementation condition, and does not误认 surfaces as having a natural algebraic zero-element structure.
+
+For a continuous map $f:C\to B$, \texttt{pullbackLocalTrivialization} gives the actual pullback local trivialization; Lean has proven
+\[
+  \mathrm{baseSet}(f^*e_b)=f^{-1}(\mathrm{baseSet}(e_b)),
+  \qquad
+  c\in\mathrm{baseSet}(f^*e_{f(c)}).
+\]
+Therefore, the pullback is not only true at the fiber type level, but the open base set of local trivializations also传递s by the inverse image functoriality.
+
+In terms of complex structure, \texttt{AtlasHolomorphicEquiv.refl} is constructed from the atlas's own holomorphic transitions.
+
+\texttt{HolomorphicFiberwiseEquiv} requires each fiber's actual \texttt{Homeomorph} to同时 satisfy bidirectional chart-level holomorphicity, and records the fiberwise biholomorphism. Its composition, inverse, and identity instances are provided. The companion
+\texttt{FamilyClassification} records the classification map, continuity, and compatibility with canonical pullback; it packages the old fiberwise equivalence data and the new classification data into a single coherent interface. Thus "equivalence" is no longer just an inoperable proposition, but can be复合 along test families.
+
+Therefore, \texttt{UniversalMarkedFamily} no longer only carries two bare \texttt{Prop} fields, but requires a classification witness for each test family. It has already written Teichmüller's original logic arrows completely
+\[
+  \text{Marked family}\longrightarrow\text{Classification map}\longrightarrow\text{Pullback of universal family},
+\]
+currently the classification witness already uses this canonical induced topology; the next step should prove in Mathlib that it is equivalent to the standard pullback/subspace topology, and upgrade the continuous classification map to a holomorphic map.
+
+The new \texttt{FineUniversalMarkedFamily} separately records uniqueness of the classification map. It is a fine-moduli interface with rigidification, not a theorem automatically推出的 from existing topological fields; only after genuine complex structures, analytic families, and no-automorphism conditions are接入, should it be provided with concrete instances.
+
+This round lifts "analytic family" from a compatibility field in the classification interface to an independent data object.
+\par
+\texttt{Global\allowbreak Holomorphic\allowbreak Marked\allowbreak Family} requires the entire carrier of the dependent sum total space to be given an actual
+\texttt{ComplexSurfaceFamily\allowbreak Atlas}, and simultaneously proves chart coverage of the whole set, atlas topology is the family's total space topology, and atlas projection is the dependent sum projection. Therefore it no longer indirectly represents analytic variation through the old
+\texttt{Family.analyticVariation : Prop}. For the current local parameterized torus pullback,
+\texttt{complexTorusLocalHolomorphicParameter\allowbreak Global\allowbreak Family} is already a concrete instance of this new interface:
+all fibers on the local test base, total space charts, parameter first coordinates, and holomorphic transitions come from previously proven objects.
+
+\texttt{GlobalHolomorphic\allowbreak Family\allowbreak Classification} additionally carries
+a global atlas on the canonical pullback total space, whole-set coverage, topological equality, and projection equality in addition to fiberwise biholomorphic realization; it can forget to the old
+\texttt{HolomorphicFamily\allowbreak Classification}, but the reverse does not automatically hold. \texttt{GlobalFineHolomorphicUniversal\allowbreak Marked\allowbreak Family} then places the universal quantifier strictly on these global analytic family objects and requires uniqueness of the classification map. This way, the original route's arrows
+\[
+  \text{Global analytic marked family}\longrightarrow\text{Global pullback atlas}\longrightarrow\text{Unique classification map}
+\]
+have been accurately written at the type level; the current code only instantiates the local genus-one test family, and does not yet claim global existence for arbitrary higher-genus families, so the true universal family theorem remains a subsequent goal.
+
+This round continues to推进 pullback from "fibers pointwise identical" to a genuine atlas functor. For a base homeomorphism
+\(e:C\mathbin{\xrightarrow{\cong}}B\),
+\texttt{canonicalPullback\_homeomorph} constructs the canonical total space homeomorphism
+\[
+  \begin{aligned}
+  \Sigma_{c:C}F_{e(c)}&\xrightarrow{\cong}\Sigma_{b:B}F_b,\\
+  (c,x)&\longmapsto(e(c),x).
+  \end{aligned}
+\]
+\texttt{ComplexSurfaceChart.transport} and
+\texttt{ComplexSurfaceAtlas.transport} transport each chart along this homeomorphism; Lean has proven that the transported overlap sets are equivalent to the original overlap sets, transition functions are pointwise unchanged, and therefore the original
+\texttt{DifferentiableOn} compatibility is automatically preserved.
+This gives \texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.pullback}: whole-set coverage, total space topology, parameter projection, and global complex atlas are simultaneously preserved;
+\texttt{GlobalHolomorphic\allowbreak Family\allowbreak Classification\allowbreak.ofBaseHomeomorph} further assembles fiberwise identity biholomorphic maps into a global classification witness.
+This step is strictly limited to base homeomorphisms, and does not yet claim that arbitrary continuous or holomorphic base-changes automatically preserve global complex structures, much less that universal families for arbitrary genera have been constructed.
+
+\par
+The next step显式化izes the remaining geometric conditions.
+\texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.Pullback\allowbreak Witness} records an actual global atlas, whole-set coverage, topological equality, and projection equality on the canonical pullback total space for any continuous base-map;
+\texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.pullbackOf} then assembles this witness into a new global analytic family.
+The global classification witness's \texttt{pullbackWithWitness} requires two witnesses: one belonging to the test family's pullback, and one belonging to the universal family's pullback along the composite classification map.
+This is not a technical duplication, but is强制出来的 by the dependent-type fact in the classification structure that "test family atlas" and "universal pullback atlas" are located on different total spaces.
+\texttt{GlobalDifferentiable\allowbreak Family\allowbreak Classification} further requires the classification map to have a genuine
+\texttt{Differentiable\allowbreak} \(\mathbb C\) certificate; under the same pullback witness, the certificate after base-change is obtained by the differentiable composition chain rule.
+Therefore, the current local analytic base-change interface is obtained honestly, but it is not yet claimed that arbitrary continuous or differentiable base-changes automatically have global complex atlases; constructing these witnesses remains the next geometric problem.
+\par
+The open base restriction is now also concretized at the topology and chart layers. \texttt{canonicalPullback\_subtype\_homeomorph}将
+the pullback over a subset \(V\subset B\) homeomorphic to the original total space's subspace
+\[
+  \{x:\operatorname{Total}(F)\mid \pi(x)\in V\},
+\]
+and \texttt{projection\_preimage\_isOpen} proves that when \(V\) is open, this subspace is open.
+On the complex chart side, \texttt{ComplexSurfaceChart\allowbreak.restrictOpenSubspace} restricts a chart to an open subspace and uses the old range's open embedding to construct a new open coordinate range. This already gives the geometric base needed for the next atlas-level restriction theorem.
+
+\end{document}
