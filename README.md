@@ -1,6 +1,8 @@
-# Teichmüller Unified Research Program
+# Über Teichmüller's Einheitliches Programm
 
-> *Continuing Oswald Teichmüller's unfinished work: unifying variable Riemann surface theory into a verifiable formal system*
+> *Fortsetzung von Oswald Teichmüller's unvollendetem Werk: Veränderliche Riemannsche Flächen als verifizierbares formales System*
+
+**[中文版本](README.zh-CN.md)** | **[English](#vision)**
 
 [![Build PDF](https://github.com/alexyyyander/teichmuller-tutorial/actions/workflows/build.yml/badge.svg)](https://github.com/alexyyyander/teichmuller-tutorial/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
