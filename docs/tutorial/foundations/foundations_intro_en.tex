@@ -1,0 +1,407 @@
+\documentclass[UTF8,a4paper,11pt]{article}
+
+\usepackage{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs,tabularx,longtable,array}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{titling}
+\usepackage{fancyhdr}
+\usepackage{mdframed}
+\usepackage{tocloft}
+\usepackage{caption}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,decorations.pathreplacing}
+
+\geometry{margin=2.5cm}
+\definecolor{ink}{HTML}{263238}
+\definecolor{mainblue}{HTML}{174A67}
+\definecolor{accentblue}{HTML}{2A7F9E}
+\definecolor{theoremgold}{HTML}{9A6811}
+\definecolor{examplepurple}{HTML}{65529B}
+\definecolor{muted}{HTML}{66737A}
+\definecolor{definitionbg}{HTML}{F2F7FA}
+\definecolor{theorembg}{HTML}{FFF8E8}
+\definecolor{propositionbg}{HTML}{F1F8F6}
+\definecolor{examplebg}{HTML}{F7F4FB}
+\definecolor{remarkbg}{HTML}{F5F6F7}
+\definecolor{navgroupbg}{HTML}{EAF2F5}
+\definecolor{navtopicbg}{HTML}{F2F6F8}
+\definecolor{navtagbg}{HTML}{E9F2F5}
+\color{ink}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=mainblue,
+  citecolor=accentblue,
+  urlcolor=accentblue
+}
+
+\newtheoremstyle{foundation-definition}
+  {9pt}{9pt}{\normalfont}{0pt}{\sffamily\bfseries\color{mainblue}}
+  {}{0.55em}{\thmname{#1}\thmnumber{~#2}\thmnote{\, (#3)}}
+\newtheoremstyle{foundation-theorem}
+  {10pt}{10pt}{\normalfont}{0pt}{\sffamily\bfseries\color{theoremgold}}
+  {}{0.55em}{\thmname{#1}\thmnumber{~#2}\thmnote{\, (#3)}}
+\newtheoremstyle{foundation-proposition}
+  {8pt}{8pt}{\normalfont}{0pt}{\sffamily\bfseries\color{accentblue}}
+  {}{0.55em}{\thmname{#1}\thmnumber{~#2}\thmnote{\, (#3)}}
+\newtheoremstyle{foundation-example}
+  {8pt}{8pt}{\normalfont}{0pt}{\sffamily\bfseries\color{examplepurple}}
+  {}{0.55em}{\thmname{#1}\thmnumber{~#2}\thmnote{\, (#3)}}
+\newtheoremstyle{foundation-remark}
+  {7pt}{7pt}{\normalfont}{0pt}{\sffamily\bfseries\color{muted}}
+  {}{0.55em}{\thmname{#1}\thmnumber{~#2}\thmnote{\, (#3)}}
+
+\theoremstyle{foundation-definition}
+\newtheorem{definition}{Definition}[section]
+\theoremstyle{foundation-theorem}
+\newtheorem{theorem}[definition]{Theorem}
+\theoremstyle{foundation-proposition}
+\newtheorem{proposition}[definition]{Proposition}
+\theoremstyle{foundation-example}
+\newtheorem{example}[definition]{Example}
+\theoremstyle{foundation-remark}
+\newtheorem{remark}[definition]{Remark}
+\theoremstyle{foundation-theorem}
+\newtheorem{corollary}[definition]{Corollary}
+
+\mdfdefinestyle{definition-frame}{
+  backgroundcolor=definitionbg, linecolor=mainblue, linewidth=1.3pt,
+  leftline=true, rightline=false, topline=false, bottomline=false,
+  skipabove=8pt, skipbelow=8pt, innerleftmargin=10pt, innerrightmargin=8pt,
+  innertopmargin=7pt, innerbottommargin=7pt
+}
+\mdfdefinestyle{theorem-frame}{
+  backgroundcolor=theorembg, linecolor=theoremgold, linewidth=1.3pt,
+  leftline=true, rightline=false, topline=false, bottomline=false,
+  skipabove=8pt, skipbelow=8pt, innerleftmargin=10pt, innerrightmargin=8pt,
+  innertopmargin=7pt, innerbottommargin=7pt
+}
+\mdfdefinestyle{proposition-frame}{
+  backgroundcolor=propositionbg, linecolor=accentblue, linewidth=1.1pt,
+  leftline=true, rightline=false, topline=false, bottomline=false,
+  skipabove=7pt, skipbelow=7pt, innerleftmargin=10pt, innerrightmargin=8pt,
+  innertopmargin=6pt, innerbottommargin=6pt
+}
+\mdfdefinestyle{example-frame}{
+  backgroundcolor=examplebg, linecolor=examplepurple, linewidth=1.1pt,
+  leftline=true, rightline=false, topline=false, bottomline=false,
+  skipabove=7pt, skipbelow=7pt, innerleftmargin=10pt, innerrightmargin=8pt,
+  innertopmargin=6pt, innerbottommargin=6pt
+}
+\mdfdefinestyle{remark-frame}{
+  backgroundcolor=remarkbg, linecolor=muted, linewidth=0.9pt,
+  leftline=true, rightline=false, topline=false, bottomline=false,
+  skipabove=6pt, skipbelow=6pt, innerleftmargin=10pt, innerrightmargin=8pt,
+  innertopmargin=5pt, innerbottommargin=5pt
+}
+\surroundwithmdframed[style=definition-frame]{definition}
+\surroundwithmdframed[style=theorem-frame]{theorem}
+\surroundwithmdframed[style=proposition-frame]{proposition}
+\surroundwithmdframed[style=example-frame]{example}
+\surroundwithmdframed[style=remark-frame]{remark}
+\surroundwithmdframed[style=theorem-frame]{corollary}
+
+\titleformat{\section}
+  {\Large\bfseries\sffamily\color{mainblue}}
+  {\colorbox{mainblue}{\strut\color{white}\thesection}}
+  {0.75em}{}
+  [\vspace{2pt}{\color{accentblue}\titlerule[0.8pt]}]
+\titleformat{\subsection}
+  {\large\bfseries\sffamily\color{accentblue}}
+  {\thesubsection}{0.7em}{}
+\titleformat{\subsubsection}
+  {\normalsize\bfseries\sffamily\color{examplepurple}}
+  {\thesubsubsection}{0.65em}{}
+\titleformat{\paragraph}[runin]
+  {\normalsize\bfseries\sffamily\color{theoremgold}}
+  {}{0pt}{}[\quad]
+\titlespacing*{\section}{0pt}{2.0ex plus .5ex minus .2ex}{1.2ex}
+\titlespacing*{\subsection}{0pt}{1.6ex plus .4ex minus .2ex}{0.75ex}
+\titlespacing*{\subsubsection}{0pt}{1.2ex plus .3ex minus .1ex}{0.5ex}
+\titlespacing*{\paragraph}{0pt}{1.0ex plus .2ex minus .1ex}{0.5em}
+
+\pretitle{\begin{center}\sffamily\color{mainblue}\Huge\bfseries}
+\posttitle{\par\end{center}\vspace{0.6em}{\color{accentblue}\hrule height 1pt}\vspace{0.8em}}
+\preauthor{\begin{center}\sffamily\large\color{muted}}
+\postauthor{\par\end{center}}
+\predate{\begin{center}\sffamily\small\color{muted}}
+\postdate{\par\end{center}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\sffamily\color{muted}走向可变黎曼曲面}
+\fancyhead[R]{\small\sffamily\color{muted}\nouppercase{\leftmark}}
+\fancyfoot[C]{\small\sffamily\color{mainblue}\thepage}
+\renewcommand{\headrulewidth}{0.35pt}
+\renewcommand{\footrulewidth}{0pt}
+\renewcommand{\sectionmark}[1]{\markboth{#1}{}}
+\setlength{\headheight}{14pt}
+\setlength{\parindent}{2em}
+\setlength{\parskip}{0.25em}
+\renewcommand{\arraystretch}{1.18}
+\renewcommand{\cftsecfont}{\small\sffamily\bfseries\color{mainblue}}
+\renewcommand{\cftsecpagefont}{\small\sffamily\bfseries\color{mainblue}}
+\renewcommand{\cftsubsecfont}{\footnotesize\sffamily\color{accentblue}}
+\renewcommand{\cftsubsecpagefont}{\footnotesize\sffamily\color{muted}}
+\setlength{\cftbeforesecskip}{3pt}
+\setlength{\cftbeforesubsecskip}{0pt}
+\setlength{\cftsecnumwidth}{2.3em}
+\setlength{\cftsubsecnumwidth}{3.2em}
+\renewcommand{\cftdotsep}{2}
+\captionsetup[figure]{font=small,labelfont={sf,bf,color=mainblue},
+  textfont={sf,color=muted},labelsep=period}
+
+\newcommand{\C}{\mathbb C}
+\newcommand{\R}{\mathbb R}
+\newcommand{\Z}{\mathbb Z}
+\newcommand{\T}{\mathcal T}
+\newcommand{\M}{\mathcal M}
+\newcommand{\Mod}{\operatorname{Mod}}
+\newcommand{\term}[2]{\hyperref[#1]{#2}}
+\newcolumntype{N}{>{\normalfont\raggedright\arraybackslash}p{0.55\textwidth}}
+\newcolumntype{E}{>{\footnotesize\sffamily\color{muted}\raggedright\arraybackslash}p{0.26\textwidth}}
+\newcolumntype{K}{>{\footnotesize\sffamily\color{muted}\raggedright\arraybackslash}p{0.15\textwidth}}
+
+\title{走向可变黎曼曲面的完整入门路线}
+\author{从高中数学到 Teichmüller 理论的概念、定理与研究接口}
+\date{第一版：\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本文把抽象代数、复分析、拓扑和几何整理成一条连续的学习旅途，目标是让初学者从函数、坐标和图形出发，逐步理解 Teichmüller 关于"可变黎曼曲面"的研究路线。每个模块只在第一次出现时定义自己的概念，然后通过例子、正式定理和接口把它交给下一模块。文中严格区分直观解释、定义、已知定理和本文尚未展开证明的高级结论。本文不把模空间、解析族、周期映射、映射类群或模函数混成同一个对象，也不声称已经完成 Teichmüller 高级定理的证明。
+\end{abstract}
+
+\tableofcontents
+\clearpage
+
+\section{路线总图：我们究竟要研究什么}
+
+\subsection{从一张纸上的图形开始}
+
+想象一张可以画坐标的纸。我们可以在纸上画曲线，给点编号，测量距离，也可以把纸拉伸、压缩或换一种坐标。高中数学通常研究某个固定平面和其中的函数；本路线更进一步，研究的是：
+
+\begin{quote}
+当一张曲面上的局部坐标规则可以改变时，哪些改变算同一种？所有允许的改变能否组织成一个空间？这些曲面能否组成一个随参数变化的整体族？
+\end{quote}
+
+为了回答这个问题，必须依次建立六种语言：
+
+\begin{enumerate}[label=(\arabic*)]
+  \item 集合与函数：说明对象是什么以及映射如何工作；
+  \item 代数与群作用：说明变换如何组合、对称性如何取商；
+  \item 复分析：说明局部复坐标和全纯变化；
+  \item 拓扑：说明连续变形、洞、同伦和标记；
+  \item 几何与微分形式：说明长度、曲率、积分和周期；
+  \item 模空间与变形理论：说明如何把许多复结构组织成空间和族。
+\end{enumerate}
+
+最后，这些语言汇合为
+\[
+\begin{gathered}
+\text{参考拓扑曲面}
+\longrightarrow
+\text{复结构}
+\longrightarrow
+\text{标记黎曼曲面}
+\longrightarrow
+\T(S)
+\longrightarrow
+\T(S)/\Mod(S)
+\longrightarrow
+\text{模空间与解析族}
+\end{gathered}
+\]
+
+\begin{remark}[路线总图中的预告记号]\label{rem:roadmap-notation}
+上面的 \(S\) 暂时表示一张固定的参考拓扑曲面；"固定"只是说先选定底层形状，
+并不表示它已经带有复结构。记号
+\term{def:teich}{Teichmüller 空间} \(\T(S)\)、
+\term{def:mapping-class}{映射类群} \(\Mod(S)\)、
+\(\M_{\mathrm{set}}(S)\) 和 \(\M(S)\) 也先作路线预告：
+\(\T(S)\) 将表示保留标记的黎曼曲面等价类，\(\Mod(S)\) 将表示参考曲面的
+方向保持自同胚按同位取类所得的群，\(\M_{\mathrm{set}}(S)\) 将表示先取轨道的集合商，
+而 \(\M(S)\) 只在进一步赋予拓扑、复结构或族的几何实现后使用。它们不是同一个对象，
+正式定义与关系分别留到拓扑、黎曼曲面和模空间模块。
+
+同样，后文会写 \(\pi:\mathcal X\to B\)：这里 \(\mathcal X\) 是可能随参数变化的总空间，
+\(B\) 是参数空间，\(\pi\) 把总空间中的点送到它所属的参数；"解析族"的正式条件尚未在此处施加。
+因此，本图只告诉读者要建立哪些对象，不把预告记号当作已经证明的高级定理。
+\end{remark}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=0.18cm and 0.12cm]
+  \node[routebox] (top) {参考\\拓扑曲面};
+  \node[routebox,right=of top] (complex) {复结构\\局部坐标};
+  \node[routebox,right=of complex] (marked) {标记\\黎曼曲面};
+  \node[routebox,right=of marked] (teich) {$\T(S)$\\保留标记};
+  \node[routebox,right=of teich] (quot) {$\T(S)/\Mod(S)$\\忘掉标记};
+  \node[routebox,right=of quot] (family) {模空间\\解析族};
+  \foreach \a/\b in {top/complex,complex/marked,marked/teich,teich/quot,quot/family}
+    \draw[diagramarrow] (\a) -- (\b);
+\end{tikzpicture}
+\caption{整条路线的"信息流"：先固定底层形状，再加入局部复坐标，最后研究复结构如何变化并组成族。}
+\label{fig:route-overview}
+\end{figure}
+
+图~\ref{fig:route-overview} 中的箭头表示"增加或组织信息"，不表示每一步都是简单的函数。特别是从 \(\T(S)\) 到模空间的箭头是按映射类群取轨道的商操作；从模空间到解析族则需要额外的几何构造。
+
+\paragraph{主干与支线。}
+上面的编号便于顺读，但实际依赖关系不是一条直线。最短主干是
+\[
+\text{基础语言}\longrightarrow\text{分析与拓扑}\longrightarrow
+\text{黎曼曲面}\longrightarrow\T(S)\longrightarrow
+\M_{\mathrm{set}}(S),
+\]
+而 Riemann--Roch/周期、低亏格模函数以及测度--Beltrami
+分别是可以并行推进的支线。支线中的高级定理不会被伪装成主干定义：
+读者可以先获得 Teichmüller 主线的对象边界，再回头深化这些工具。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=0.28cm and 0.65cm]
+  \node[routebox,text width=3.0cm] (basic) {基础语言\\集合、函数、证明};
+  \node[routebox,text width=3.0cm,below=of basic] (analysis) {分析与线性代数\\极限、矩阵、复数};
+  \node[routebox,text width=3.0cm,below=of analysis] (top) {拓扑曲面\\同伦、亏格、标记};
+  \node[routebox,text width=3.0cm,below=of top] (rs) {黎曼曲面\\复结构、全纯映射};
+  \node[routebox,text width=3.0cm,below=of rs] (teich) {Teichmüller 主干\\\(\T(S)\)、\(\Mod(S)\)、模空间};
+  \draw[diagramarrow] (basic)--(analysis);
+  \draw[diagramarrow] (analysis)--(top);
+  \draw[diagramarrow] (top)--(rs);
+  \draw[diagramarrow] (rs)--(teich);
+  \node[conceptbox,text width=3.3cm,right=of analysis] (period) {周期支线\\微分形式、Riemann--Roch、周期映射};
+  \node[conceptbox,text width=3.3cm,right=of rs] (jbranch) {低亏格支线\\格、\(j\)-不变量、模函数};
+  \node[conceptbox,text width=3.3cm,right=of teich] (qc) {研究预览\\测度、Beltrami、拟共形};
+  \draw[lightarrow,dashed] (analysis.east)--(period.west);
+  \draw[lightarrow,dashed] (rs.east)--(jbranch.west);
+  \draw[lightarrow,dashed] (teich.east)--(qc.west);
+  \node[figurelabel,below=0.24cm of teich,text width=8.0cm,align=center]
+    {实线是主干依赖；虚线是可并行的高级支线，不是高中阶段的必修门槛。};
+\end{tikzpicture}
+\caption{从基础到 Teichmüller 理论的"主干加支线"学习图。}
+\label{fig:main-branches}
+\end{figure}
+
+\clearpage
+\section{术语导航：点击回到第一次严格定义}
+
+本节是一个可点击的学术索引，不重复正文中的概念说明。索引中的术语只负责把读者送到正文；
+严格内容仍以落点处的环境标题、编号和公式为准。若某个词只作为历史名称或研究目标出现，
+它不会被伪装成已经形式化或已经证明的结论。
+
+\begin{mdframed}[backgroundcolor=remarkbg,linecolor=accentblue,linewidth=1.0pt,
+  leftline=true,rightline=false,topline=false,bottomline=false,
+  skipabove=7pt,skipbelow=8pt,innerleftmargin=10pt,innerrightmargin=8pt,
+  innertopmargin=6pt,innerbottommargin=6pt]
+\small
+\textcolor{mainblue}{\sffamily\bfseries 使用方式}\par\smallskip
+\begin{tabularx}{\dimexpr\linewidth-20pt\relax}{@{}>{\sffamily\bfseries\color{accentblue}}p{1.35cm}@{\hspace{0.55em}}X@{}}
+点击 & 蓝色术语会跳到正文中该词的第一次正式入口。\\
+判定 & 以落点处的"定义／正式定理／正式命题／说明"标题为准；索引不替代证明。\\
+阅读 & 先看左列术语，再看中列类型，最后用右列确认它在 Teichmüller 路线中的位置。
+\end{tabularx}
+\par\smallskip
+\begin{tabular}{@{}>{\sffamily\bfseries\color{mainblue}}p{1.8cm}@{\hspace{0.4em}}cccc@{}}
+入口色标 &
+\colorbox{mainblue}{\strut\footnotesize\sffamily\bfseries\color{white}定义} &
+\colorbox{theoremgold}{\strut\footnotesize\sffamily\bfseries\color{white}正式定理} &
+\colorbox{accentblue}{\strut\footnotesize\sffamily\bfseries\color{white}正式命题/推论} &
+\colorbox{muted}{\strut\footnotesize\sffamily\bfseries\color{white}说明/状态边界}
+\end{tabular}\par\smallskip
+\smallskip
+\textcolor{muted}{\footnotesize
+表中省略 \texttt{def}/\texttt{thm}/\texttt{prop}/\texttt{rem} 前缀；灰色小标题只是本行的阅读索引，
+模块色带表示学习阶段。它们都不是新的数学定义。}
+\par\smallskip
+\textcolor{muted}{\footnotesize\sffamily
+建议按"模块带 $\rightarrow$ 主题标签 $\rightarrow$ 蓝色术语 $\rightarrow$ 入口类型 $\rightarrow$ 路线接口"的顺序读表；
+点击术语后，用返回键即可回到本索引。}
+\end{mdframed}
+
+\begingroup
+\footnotesize
+\renewcommand{\arraystretch}{1.04}
+\setlength{\LTpre}{2pt}
+\setlength{\LTpost}{4pt}
+\setlength{\tabcolsep}{0pt}
+\renewcommand{\term}[2]{\hyperref[#1]{\textcolor{accentblue}{\normalfont\mdseries #2}}}
+\begin{longtable}{@{}N@{\hspace{0.015\textwidth}}K@{\hspace{0.015\textwidth}}E@{}}
+\toprule
+ {\sffamily\bfseries\color{mainblue}点击术语（第一次正式入口）}
+  & {\sffamily\bfseries\color{mainblue}入口类型}
+  & {\sffamily\bfseries\color{mainblue}路线接口} \\
+\midrule
+\endfirsthead
+\toprule
+{\sffamily\bfseries\color{mainblue}点击术语（第一次正式入口）}
+  & {\sffamily\bfseries\color{mainblue}入口类型}
+  & {\sffamily\bfseries\color{mainblue}路线接口} \\
+\midrule
+\endhead
+\midrule
+\multicolumn{3}{r@{}}{\footnotesize\sffamily\color{muted}续下页}\\
+\endfoot
+\bottomrule
+\endlastfoot
+\navgroup{模块 0}{数学语言预备工具箱}
+\navtopic{数、集合与逻辑}\term{def:set-membership}{集合、元素与空集}、\term{def:subset}{子集}、\term{def:set-builder-notation}{集合描述式}、\term{def:set-operations}{集合运算与补集}、\term{def:number-systems}{数系}、\term{def:real-number}{实数}、\term{def:ordered-relation}{序关系}、\term{def:upper-bound}{上界}、\term{def:supremum}{最小上界}、\term{def:real-completeness}{完备性}、\term{def:interval}{区间}、\term{def:absolute-value}{绝对值}、\term{def:logic-symbols}{逻辑连接词与量词} & \navkind{定义} & 先固定元素、子集、集合运算、数、量词和极限所需的语言 \\
+\navtopic{坐标与直积}\term{def:ordered-pair}{有序对}、\term{def:cartesian-product}{直积}、\term{def:projection-map}{投影映射} & \navkind{定义} & 先固定有序坐标、直积对象和坐标投影 \\
+\navtopic{函数与复合}\term{def:set-function}{集合与函数}、\term{def:image-set}{像集}、\term{def:preimage}{原像}、\term{def:fiber}{纤维}、\term{def:function-composition}{函数复合}、\term{def:identity-map}{恒等映射}、\term{def:function-graph-formal}{函数的集合论图像} & \navkind{定义} & 再固定定义域、陪域、输入输出规则与复合次序 \\
+\term{def:injective}{单射}、\term{def:surjective}{满射}、\term{def:bijective}{双射}、\term{def:inverse-map}{逆映射}、\term{def:finite-set}{有限集合}、\term{def:cardinality}{基数}、\term{def:left-inverse}{左逆}、\term{def:right-inverse}{右逆} & \navkind{定义} & 在同一 \(f:X\to Y\) 下区分无碰撞、无遗漏和逐一匹配 \\
+\term{def:sequence}{数列}、\term{def:sequence-limit}{数列极限}、\term{def:function-limit}{函数极限}、\term{def:function-graph}{函数图像}、\term{def:parametric-curve}{参数曲线}、\term{def:coordinate}{坐标}、\term{def:vector}{向量}、\term{def:distance}{距离}、\term{def:matrix-read}{矩阵的读法}、\term{def:derivative}{导数}、\term{def:integral}{积分} & \navkind{定义} & 为分析、几何和矩阵运算提供共同的计算入口 \\
+\navtopic{极限的性质与连续性}\term{prop:sequence-limit-unique}{极限唯一性}、\term{prop:convergent-sequence-bounded}{收敛数列有界}、\term{thm:squeeze-sequence}{夹逼定理}、\term{prop:sequence-limit-algebra}{极限运算规则}、\term{def:domain-accumulation-point}{定义域聚点}、\term{def:pointwise-continuity}{点态连续性}、\term{prop:limit-continuity-bridge}{极限--连续性桥接} & \navkind{命题／定理／定义} & 说明极限为何可计算，并把去心极限接到函数的实际值 \\
+\navgroup{模块 1}{集合、函数与"什么算相同"}
+\navtopic{关系与等价}\term{def:restriction-map}{限制映射}、\term{def:inclusion-map}{包含映射}、\term{def:codomain-restriction}{陪域缩小}、\term{def:relation}{二元关系}、\term{def:relation-properties}{自反、对称、传递关系}、\term{def:equivalence}{等价关系}、\term{def:equivalence-class}{等价类}、\term{def:representative}{代表元} & \navkind{定义} & 从映射的局部改变进入"哪些对象视为相同" \\
+\navtopic{商与结构保持}\term{def:partition}{集合分割}、\term{def:power-set}{幂集}、\term{def:quotient}{商集}、\term{def:quotient-map}{商映射}、\term{def:integer-quotient}{模 \(n\) 的整数商集}、\term{def:well-defined-quotient}{良定义}、\term{thm:quotient-descent-iff}{商上下降的充要条件}、\term{def:structure-preserving-map}{结构保持映射}、\term{def:isomorphism}{结构同构}、\term{prop:quotient-descent}{商上的下降判据} & \navkind{定义／定理} & 构造集合商，并为商群、轨道商和模空间的"下降"固定模板 \\
+\navgroup{模块 2}{对称性、群、线性代数与复数预备}
+\navtopic{群与作用}\term{def:binary-operation}{二元运算}、\term{def:group}{群}、\term{def:abelian-group}{交换群}、\term{def:group-order}{群的阶}、\term{def:element-order}{元素的阶}、\term{def:cyclic-group}{循环群}、\term{def:subgroup}{子群}、\term{def:center}{群的中心}、\term{def:coset}{陪集}、\term{def:subgroup-index}{子群指数}、\term{def:conjugation}{群共轭}、\term{def:normal-subgroup}{正规子群}、\term{def:quotient-group}{商群}、\term{def:group-action}{群作用}、\term{def:action-kernel}{作用的核}、\term{def:faithful-action}{忠实作用}、\term{def:sym-group-general}{对称群}、\term{def:orbit}{轨道}、\term{def:stabilizer}{稳定子}、\term{def:action-quotient}{作用商}、\term{prop:cyclic-subgroup}{循环子群的基本性质}、\term{thm:lagrange}{拉格朗日定理} & \navkind{定义／定理} & 描述可组合的对称变换、固定点和轨道 \\
+\term{def:group-hom}{群同态}、\term{def:group-isomorphism}{群同构}、\term{def:kernel}{核}、\term{def:image-subgroup}{同态像}、\term{thm:first-isomorphism}{第一同构定理}、\term{prop:orbit-stabilizer-bijection}{轨道--稳定子双射}、\term{prop:orbit-quotient-descent}{轨道商的下降判别} & \navkind{定义／命题} & 把结构保持映射和取商连接起来 \\
+\term{def:ring}{环}、\term{def:commutative-ring}{交换环}、\term{def:field}{域}、\term{def:ideal}{理想}、\term{def:quotient-ring}{商环}、\term{def:ring-hom}{环同态}、\term{def:ring-kernel}{环同态的核}、\term{def:ring-image}{同态的像}、\term{def:ring-isomorphism}{环同构}、\term{def:zero-divisor}{零因子}、\term{def:integral-domain}{整环}、\term{def:ring-characteristic}{环的特征}、\term{def:module}{模}、\term{def:submodule}{子模}、\term{def:quotient-module}{商模}、\term{def:module-hom}{模同态}、\term{def:module-isomorphism}{模同构}、\term{thm:ring-first-isomorphism}{环的第一同构定理}、\term{thm:module-first-isomorphism}{模的第一同构定理} & \navkind{定义／定理} & 组织加法、乘法和标量作用 \\
+\term{def:vector-space}{向量空间}、\term{def:linear-map}{线性映射}、\term{def:bilinear-map}{双线性映射}、\term{def:inner-product}{内积与范数}、\term{def:hermitian-inner-product}{Hermitian 内积}、\term{def:basis-dimension}{基与维数}、\term{def:dual-space}{对偶空间与协向量}、\term{def:multilinear-map}{多线性映射}、\term{def:alternating-map}{交替映射}、\term{def:eigenpair}{特征值与特征向量}、\term{def:linear-kernel}{核}、\term{def:linear-image}{像}、\term{def:linear-rank}{秩}、\term{prop:linear-rank-nullity}{秩--零化度公式}、\term{def:matrix-space}{矩阵空间}、\term{def:determinant}{行列式}、\term{def:invertible-matrix}{可逆矩阵}、\term{def:general-linear-group}{一般线性群}、\term{def:special-linear-group}{特殊线性群} & \navkind{定义／命题} & 为矩阵、微分和张量提供线性代数底座 \\
+\term{def:psl}{\(\mathrm{SL}_2\) 与 \(\mathrm{PSL}_2\)}、\term{def:projective-linear-group}{\(\mathrm{PGL}_2\)}、\term{def:projective-special-linear-group}{\(\mathrm{PSL}_2\)}、\term{def:projective-line}{射影直线}、\term{def:upper-half-plane}{上半平面}、\term{prop:upper-half-plane-basic}{上半平面的基本拓扑性质}、\term{def:mobius}{Möbius 变换}、\term{prop:projective-action}{射影作用下降}、\term{def:complex-number}{复数}、\term{def:complex-conjugate}{复共轭}、\term{def:complex-modulus}{复数的模} & \navkind{定义／命题} & 为射影作用、复坐标和模群模型准备代数语言 \\
+\noalign{\break}
+\navgroup{模块 3}{复分析、局部复坐标与复结构}
+\navtopic{复坐标与共形性}\term{def:complex-exponential}{复指数}、\term{def:entire-function}{整函数}、\term{prop:complex-exponential-basic}{复指数的收敛与基本法则}、\term{thm:euler-formula}{Euler 公式}、\term{def:polar-form}{极坐标形式}、\term{prop:polar-multiplication}{极坐标乘法法则}、\term{def:punctured-plane}{穿孔复平面}、\term{def:complex-logarithm}{复对数支}、\term{prop:complex-exponential-fibers}{复指数的周期与纤维}、\term{def:complex-derivative}{复导数}、\term{def:holomorphic}{全纯函数}、\term{def:partial-derivative}{偏导数}、\term{def:total-differential}{多元实微分}、\term{def:jacobian-matrix}{Jacobian 矩阵}、\term{prop:complex-differential-cr}{Cauchy--Riemann 判据}、\term{prop:complex-jacobian-modulus}{复导数与实 Jacobian 的关系}、\term{prop:holomorphic-composition}{全纯映射的复合}、\term{def:conformal}{共形映射}、\term{prop:conformal-angle}{共形映射的角度性质} & \navkind{定义／命题} & 说明复可微性、全纯性和角度保持的局部机制 \\
+\term{thm:cauchy-integral-theorem}{Cauchy 积分定理}、\term{thm:cauchy-integral-formula}{Cauchy 积分公式} & \navkind{正式定理} & 把全纯函数的局部微分条件提升为闭曲线积分和点值公式 \\
+\navtopic{分析底座与积分}\term{def:metric-space}{度量空间}、\term{def:analysis-foundations}{数列收敛与度量连续性}、\term{def:cauchy-complete}{Cauchy 列与完备性}、\term{def:uniform-convergence}{一致收敛}、\term{def:l1-integrability}{绝对可积函数与 \(L^1\)}、\term{def:c1-function}{\(C^1\) 函数}、\term{def:series-convergence}{无穷级数收敛}、\term{def:complex-domain}{复平面区域}、\term{def:piecewise-smooth-curve}{分段光滑曲线}、\term{def:complex-line-integral}{复曲线积分}、\term{def:primitive-complex}{原函数}、\term{def:interior}{内点集}、\term{def:closure}{闭包}、\term{def:topological-boundary}{拓扑边界}、\term{def:dense-subset}{稠密子集}、\term{rem:interior-closure-boundary-quickcheck}{三者一眼检查}、\term{prop:interior-closure-boundary}{内点、闭包与边界的互相刻画} & \navkind{定义／命题} & 补足极限、连续、曲线积分和区域边界；用邻域判据统一开、闭与边界 \\
+\navtopic{级数、奇点与留数}\term{def:taylor-series}{Taylor 级数}、\term{def:taylor-expansion}{Taylor 展开}、\term{thm:taylor-expansion}{全纯函数 Taylor 展开}、\term{cor:holomorphic-analytic}{全纯函数的局部解析性}、\term{cor:holomorphic-zero-discrete}{非零全纯函数的零点离散性}、\term{def:power-series}{复幂级数}、\term{def:convergence-radius}{收敛半径}、\term{thm:power-series-radius}{幂级数收敛半径定理}、\term{def:isolated-singularity}{孤立奇点}、\term{def:removable-singularity}{可去奇点}、\term{def:pole}{极点}、\term{def:essential-singularity}{本性奇点}、\term{def:meromorphic}{亚纯函数}、\term{thm:isolated-singularity-tests}{孤立奇点判别定理}、\term{def:laurent-series}{Laurent 级数}、\term{def:residue}{留数}、\term{prop:simple-pole-residue}{一阶极点留数公式}、\term{def:winding-number}{绕数}、\term{prop:winding-number-simple-curve}{简单闭曲线绕数性质}、\term{thm:argument-principle}{辩值原理} & \navkind{定义／命题／定理／推论} & 连接局部奇点、零极点计数和全纯函数的级数展开 \\
+\navtopic{变换支线}\term{def:indicator-function}{示性函数}、\term{def:interval-length}{区间长度}、\term{def:translation-reflection}{平移与反射算子}、\term{thm:tonelli-fubini-interface}{Tonelli--Fubini 交换接口}、\term{thm:dominated-convergence-interface}{支配收敛接口}、\term{def:convolution}{卷积}、\term{prop:convolution-basic}{卷积基本性质}、\term{def:one-sided-convolution}{单边卷积}、\term{def:fourier-transform}{Fourier 变换}、\term{prop:fourier-l1-properties}{\(L^1\) Fourier 基本性质}、\term{def:schwartz-space}{Schwartz 空间}、\term{thm:fourier-inversion}{Fourier 反演定理}、\term{def:exponential-order}{指数阶函数}、\term{def:laplace-transform}{Laplace 变换}、\term{prop:laplace-half-plane}{Laplace 收敛半平面} & \navkind{定义／命题／定理} & 把函数重新编码为卷积、频率参数和 Laplace 参数；这些是分析支线，不替代复结构定义 \\
+\term{def:topology}{拓扑}、\term{def:continuous-map}{连续映射}、\term{def:closed-set}{闭集}、\term{def:basic-planar-models}{基本平面与曲面模型}、\term{def:hausdorff}{Hausdorff 条件}、\term{def:second-countable}{第二可数性}、\term{def:topological-manifold}{拓扑流形}、\term{def:coordinate-chart}{坐标图}、\term{def:atlas}{图册}、\term{def:compatible-charts}{相容坐标图}、\term{def:complex-atlas}{复图册}、\term{def:complex-structure}{复结构}、\term{prop:complex-atlas-cocycle}{复图册的过渡恒等式}、\term{prop:complex-structure-maximality}{极大复图册的唯一性}、\term{def:riemann-surface}{黎曼曲面}、\term{def:holomorphic-map}{黎曼曲面间的全纯映射}、\term{prop:holomorphic-coordinate-independence}{全纯映射的坐标独立性}、\term{def:biholomorphic}{双全纯映射}、\term{def:open-map}{开映射}、\term{def:closed-map}{闭映射}、\term{def:topological-embedding}{拓扑嵌入}、\term{def:local-homeomorphism}{局部同胚}、\term{prop:bijective-topological-equivalences}{双射的逆连续、开性与闭性}、\term{def:quotient-topology}{商拓扑}、\term{def:topological-quotient-map}{拓扑商映射}、\term{prop:quotient-topology-characterization}{商拓扑与商映射的对应}、\term{prop:quotient-continuity-descent}{商映射的连续性下降}、\term{def:homeomorphism}{同胚}、\term{def:local-bijection}{局部双射与局部双全纯}、\term{prop:local-homeomorphism-open}{局部同胚是开映射}、\term{prop:local-homeomorphism-bijection-homeomorphism}{局部同胚加双射得到同胚}、\term{thm:compact-continuous-injection-embedding}{紧致源到 Hausdorff 目标的嵌入判据}、\term{thm:compact-continuous-bijection}{紧致 Hausdorff 下的连续双射}、\term{rem:map-properties-orthogonal}{映射性质的正交读法} & \navkind{定义／定理} & 把平面上的局部复分析拼成曲面上的复结构，并固定连续映射与同胚入口 \\
+\navtopic{结构保持的可逆性}\term{prop:structural-equivalence-hierarchy}{结构保持的可逆性层次} & \navkind{正式命题} & 把连续、光滑、全纯和同伦等价放在同一张类型检查表中 \\
+\navgroup{模块 4}{拓扑、曲面、同伦和标记}
+\navtopic{分支与不变量}\term{rem:topology-branches}{点集、代数、几何、微分与低维拓扑}、\term{def:topological-invariant}{拓扑不变量} & \navkind{说明／定义} & 在同胚和局部坐标之后，进入曲面的标准模型与拓扑分支 \\
+\navtopic{变形、闭路与基本群}\term{def:homotopy}{同伦}、\term{def:homotopy-class}{映射的同伦类}、\term{def:isotopy}{同位}、\term{def:orientation-preserving-isotopy}{方向保持同位}、\term{def:fixed-endpoint-homotopy}{固定端点同伦}、\term{def:homotopy-equivalence}{同伦等价映射}、\term{def:homotopy-equivalent-spaces}{同伦等价空间}、\term{def:contractible}{可缩空间}、\term{def:connected}{连通}、\term{def:path-connected}{路径连通}、\term{def:simply-connected}{单连通}、\term{def:fundamental-group}{基本群}、\term{def:path-concatenation}{路径拼接}、\term{def:reverse-path}{反向路径} & \navkind{定义／命题} & 记录连续变形、闭路和基本拓扑不变量 \\
+\navtopic{定向、覆盖与基点}\term{def:local-orientation-class}{二维局部定向类}、\term{prop:pi1-induced-map}{基本群诱导同态}、\term{prop:pi1-basepoint-change}{基本群基点变换}、\term{def:covering-map}{覆盖映射}、\term{prop:covering-local-homeomorphism}{覆盖映射的局部性质}、\term{thm:path-lifting}{路径提升定理} & \navkind{定义／命题／定理} & 说明方向选择、局部覆盖、路径提升和基点改变如何连接 \\
+\navtopic{曲面模型与标记}\term{def:triangulation}{三角剖分}、\term{def:cell-decomposition}{胞腔分解}、\term{def:euler-characteristic}{欧拉示性数}、\term{def:genus}{亏格}、\term{def:connected-sum}{连通和}、\term{def:standard-surface}{标准曲面}、\term{def:surface-orientation}{曲面定向}、\term{def:orientation-preserving}{方向保持映射}、\term{def:marking}{标记}、\term{def:orientation-preserving-homeomorphism-group}{方向保持自同胚群}、\term{def:mapping-class}{映射类群}、\term{def:topological-invariant}{拓扑不变量}、\term{def:compact}{紧致性}、\term{thm:surface-classification}{紧致可定向曲面的分类} & \navkind{定义／正式定理} & 由曲面分类进入 Teichmüller 的标记和映射类群；正式定理说明亏格 \(g\) 为什么能作为闭可定向曲面的离散拓扑标签 \\
+\navgroup{模块 5}{几何、微分形式与周期}
+\navtopic{光滑流形与微分}\term{def:n-dimensional-topological-manifold}{\(n\) 维拓扑流形}、\term{def:smooth-manifold}{光滑流形}、\term{def:smooth-map}{光滑映射}、\term{def:local-diffeomorphism}{局部微分同胚}、\term{def:tangent-space}{切空间}、\term{def:manifold-differential}{流形上的微分}、\term{prop:tangent-space-coordinate-vector}{切空间的坐标表示}、\term{prop:differential-coordinate-matrix}{微分的 Jacobian 表示}、\term{prop:differential-functoriality}{切映射的函子性}、\term{def:diffeomorphism}{微分同胚}、\term{def:ck-diffeomorphism}{\(C^k\) 微分同胚}、\term{thm:inverse-function}{逆函数定理}、\term{def:submersion}{浸没}、\term{def:immersion}{浸入}、\term{def:regular-value}{正则值} & \navkind{定义／定理} & 把局部微分、秩和全局几何可逆性分层 \\
+\navtopic{度量、场与曲率}\term{def:manifold-with-boundary}{带边界流形与边界}、\term{def:manifold-orientation}{流形定向}、\term{def:volume-form}{体积形式}、\term{def:metric}{黎曼度量}、\term{def:vector-field}{向量场}、\term{def:vector-calculus-triad}{标量场、向量场与方向导数}、\term{def:gradient}{梯度}、\term{def:divergence}{散度}、\term{def:curl}{旋度}、\term{def:riemannian-divergence}{黎曼流形上的散度}、\term{def:differential-one-form}{函数的微分}、\term{def:musical-isomorphism}{升降指标}、\term{def:connection}{联络}、\term{def:lie-bracket}{Lie 括号}、\term{def:geodesic}{测地线}、\term{def:curvature-tensor}{曲率张量}、\term{def:gaussian-curvature}{高斯曲率}、\term{def:hessian}{Hessian 矩阵}、\term{def:laplace-operator}{Laplace 算子} & \navkind{定义} & 先固定标量场、向量场、协向量与梯度/散度/旋度的输入输出类型，再进入曲率和微分算子 \\
+\navtopic{张量、旋量与形式}\term{def:clifford-algebra}{Clifford 代数}、\term{def:orthogonal-special-orthogonal}{正交群与特殊正交群}、\term{def:spin-group}{Spin 群}、\term{def:spin-structure}{Spin 结构}、\term{def:spinor}{旋量的定位}、\term{prop:tensor-spinor-type-check}{张量—旋量类型边界}、\term{def:tensor-product}{张量积}、\term{def:tensor}{张量}、\term{def:tensor-field}{张量场}、\term{def:form}{微分形式}、\term{def:wedge-product}{楔积}、\term{def:exterior-derivative}{外微分}、\term{def:closed-form}{闭形式}、\term{def:exact-form}{恰当形式}、\term{def:hodge-star}{Hodge 星}、\term{prop:vector-form-dictionary}{向量场与微分形式的转换字典} & \navkind{定义／命题} & 区分向量、协向量、张量、旋量和外微分运算；形式拉回与 Hodge 星负责把坐标公式接到不变量语言 \\
+\navtopic{链、同调与周期}\term{def:circulation-flux}{环流与通量}、\term{def:laplace-operator}{Laplace 算子}、\term{prop:hodge-laplace}{Hodge 星与 Laplace 关系}、\term{def:form-pullback}{形式拉回}、\term{def:form-integral}{形式积分}、\term{def:standard-simplex}{标准单形}、\term{def:boundary-operator}{边界算子}、\term{def:boundary-orientation}{边界诱导定向}、\term{def:singular-chain}{奇异链}、\term{def:chain-pushforward}{奇异链推前}、\term{prop:boundary-pushforward}{推前与边界相容}、\term{prop:boundary-square-zero}{边界的边界为零} & \navkind{定义／命题} & 把局部环流、通量和形式积分送入链与边界的统一记账 \\
+\navtopic{Stokes 与周期配对}\term{thm:chain-stokes}{链上的 Stokes 公式}、\term{thm:stokes}{Stokes 定理}、\term{def:homology}{奇异同调}、\term{def:real-homology}{实系数奇异同调}、\term{def:singular-cohomology}{奇异上同调}、\term{prop:cochain-square-zero}{余边界平方为零}、\term{def:de-rham-cohomology}{de Rham 上同调}、\term{def:period}{周期}、\term{prop:period-pairing}{周期配对}、\term{prop:period-naturality}{周期配对的自然性} & \navkind{命题／定理} & 把积分变成边界公式、同调/上同调配对和周期数据 \\
+\navgroup{模块 6}{黎曼曲面、双曲几何、全纯微分与 Riemann--Roch}
+\navtopic{双曲模型与分解}\term{thm:uniformization-surface}{均匀化定理}、\term{def:riemannian-completeness}{黎曼完备性}、\term{thm:hopf-rinow}{Hopf--Rinow 定理}、\term{def:hyperbolic-metric}{双曲度量}、\term{def:simple-closed-curve}{简单闭曲线}、\term{def:essential-simple-closed-curve}{本质简单闭曲线}、\term{def:curve-isotopy}{曲线同位}、\term{def:pair-of-pants}{三孔球面}、\term{def:pants-decomposition}{裤子分解}、\term{def:fenchel-nielsen}{Fenchel--Nielsen 坐标}、\term{def:lattice-torus}{格与复环面}、\term{def:lattice-quotient-parallelogram}{格商与基本平行四边形} & \navkind{定义／定理} & 从双曲模型和复环面进入黎曼曲面的全局结构 \\
+\navtopic{除子、微分与线丛}\term{def:order-divisor}{函数局部阶数}、\term{prop:order-additivity}{局部阶数的乘法法则}、\term{def:order-differential}{微分局部阶数}、\term{def:meromorphic-differential}{亚纯微分}、\term{def:divisor}{除子}、\term{def:principal-canonical-divisor}{典范除子}、\term{def:linear-equivalence-divisor}{除子的线性等价}、\term{def:divisor-space}{除子函数空间}、\term{def:divisor-line-bundle}{除子线丛}、\term{def:line-bundle}{线丛与典范丛}、\term{def:cocycle-condition}{cocycle 粘合条件} & \navkind{定义／命题} & 组织零点、极点、全纯微分、线丛和截面 \\
+\navtopic{交叉、周期与 Riemann--Roch}\term{def:transverse-intersection}{横截相交}、\term{def:intersection-pairing}{曲面的交叉配对}、\term{def:symplectic-homology-basis}{辛同调基}、\term{thm:normalized-differentials}{归一化全纯微分}、\term{def:siegel-upper-half-space}{Siegel 上半空间}、\term{def:symplectic-group}{整数辛群}、\term{def:symplectic-period-transform}{整数辛群与周期矩阵变换}、\term{def:jacobian}{Jacobian}、\term{def:torelli-principle}{Torelli 型比较}、\term{def:period-matrix}{周期矩阵}、\term{def:period-map}{周期映射}、\term{rem:period-map-status}{周期映射的三层状态}、\term{thm:riemann-roch}{Riemann--Roch}、\term{thm:canonical-divisor-degree}{典范除子次数与全纯微分维数}、\term{thm:meromorphic-divisor-degree-zero}{主除子次数为零} & \navkind{定义／命题／定理} & 把同调基、归一化微分和周期矩阵接到分类问题 \\
+\navtopic{周期矩阵的类型检查}\term{def:complex-matrix-components}{周期矩阵的线性代数记号}、\term{prop:positive-definite-complex-test}{实正定性的复向量检验}、\term{prop:period-table-normalization}{原始周期表到归一化周期矩阵}、\term{thm:siegel-action-well-defined}{Siegel 上半平面上的辛作用} & \navkind{定义／命题／定理} & 解释 \(g\times2g\) 原始周期表、\(g\times g\) 归一化矩阵与正定性 \\
+\navgroup{模块 7}{模问题、标记、映射类群与模函数}
+\navtopic{标记与轨道}\term{def:marked-riemann}{标记黎曼曲面}、\term{def:marked-riemann-equivalence}{标记黎曼曲面等价}、\term{def:teich}{Teichmüller 空间}、\term{def:teich-action}{映射类群作用}、\term{prop:teich-action-well-defined}{作用的良定义与群公理}、\term{prop:teich-orbits-unmarked}{轨道与无标记同构类}、\term{def:set-moduli}{集合轨道商}、\term{def:elliptic-lattice-classification}{复椭圆曲线的格基分类} & \navkind{定义／命题} & 保留标记后分类复结构，再用轨道商忘掉标记 \\
+\navtopic{模空间与模函数}\term{def:moduli}{模空间}、\term{def:coarse-moduli-space}{粗模空间}、\term{def:fine-moduli-space}{细模空间}、\term{def:compactification}{紧化}、\term{def:level-structure}{level structure}、\term{def:orbifold}{轨形}、\term{def:cusp}{尖点}、\term{def:discrete-mobius-group}{离散 Möbius 群}、\term{def:parabolic-fixed-point}{抛物固定点}、\term{def:scaling-matrix}{尺度矩阵}、\term{def:cusp-width}{尖点宽度}、\term{def:cusp-local-parameter}{尖点局部参数}、\term{def:q-expansion}{\(q\)-展开}、\term{def:modular-weight}{模变换权}、\term{def:modular-function}{模函数}、\term{prop:modular-invariant-descent}{模不变函数的下降}、\term{def:modular-form}{模形式}、\term{def:j-invariant}{\(j\)-不变量} & \navkind{定义／命题} & 严格区分参数空间、商的几何实现和其上的不变量函数 \\
+\navgroup{模块 8}{解析族、模函子和普适性}
+\navtopic{复族与纤维}\term{def:complex-manifold}{复流形}、\term{def:complex-submanifold}{复子流形}、\term{def:complex-holomorphic-map}{复流形间的全纯映射}、\term{def:complex-submersion}{复次浸没}、\term{def:base-fiber}{基、总空间与纤维}、\term{def:proper-map}{proper 适当映射}、\term{def:weak-family}{弱族}、\term{def:analytic-family}{解析族}、\term{def:smooth-compact-analytic-family}{光滑紧致解析族}、\term{thm:fiber-submanifold}{次浸没的纤维定理}、\term{thm:ehresmann}{Ehresmann 局部平凡性} & \navkind{定义／定理} & 从单个曲面进入随参数变化的族 \\
+\navtopic{粘合、拉回与单值化}\term{def:trivial-family}{平凡族与局部平凡族}、\term{def:holomorphic-automorphism-group}{全纯自同构群}、\term{def:section}{族的截面}、\term{def:family-isomorphism}{族同构}、\term{def:groupoid}{群胚}、\term{def:local-system}{局部系统}、\term{def:monodromy}{monodromy}、\term{def:pullback}{拉回族}、\term{prop:pullback-fiber}{拉回纤维的显式识别}、\term{def:cartesian-square}{纤维积的泛性质} & \navkind{定义／命题} & 说明纤维如何粘合、运输和沿参数变换拉回 \\
+\navtopic{函子与普适性}\term{def:category}{范畴}、\term{def:functor}{函子}、\term{def:natural-transformation}{自然变换}、\term{def:test-space}{测试空间}、\term{def:test-natural}{测试空间上的自然规则}、\term{def:moduli-functor}{模函子}、\term{def:fixed-genus-moduli-functor}{固定亏格模函子}、\term{def:representable}{普适族与可表示性}、\term{def:moduli-stack}{模栈} & \navkind{定义} & 把"分类对象"提升为"分类所有族"，并保留自同构信息 \\
+\navgroup{模块 9}{拟共形变形与 Teichmüller 核心}
+\navtopic{可测微分与拉伸}\term{def:measurable}{可测函数}、\term{def:linfty}{\(L^\infty\)}、\term{def:weak-derivative}{分布、弱导数与 Sobolev 空间}、\term{def:elliptic-equation}{椭圆型方程}、\term{def:weak-complex-derivative}{弱复导数与 Wirtinger 算子}、\term{def:map-beltrami-coefficient}{映射的 Beltrami 系数}、\term{def:beltrami-differential}{Beltrami 数据局部系数}、\term{def:beltrami-tensor}{Beltrami 数据张量}、\term{def:singular-values}{奇异值} & \navkind{定义} & 把可测变形数据写成局部微分和方向性拉伸 \\
+\navtopic{Beltrami 方程与距离}\term{def:beltrami}{Beltrami 方程}、\term{def:qc-distortion}{拟共形畸变}、\term{prop:qc-denominator-orientation}{畸变分母与方向保持}、\term{def:quasiconformal}{平面拟共形映射}、\term{def:surface-quasiconformal}{曲面拟共形映射}、\term{prop:qc-composition}{拟共形复合与逆映射}、\term{def:quadratic-differential}{二次微分}、\term{def:quadratic-trajectory}{二次微分轨迹}、\term{prop:quadratic-trajectory-criterion}{轨线的自然坐标判据}、\term{def:pseudometric}{伪度量}、\term{def:extremal-map}{极值映射}、\term{def:teich-admissible-map}{Teichmüller 允许映射}、\term{def:teich-distance}{Teichmüller 距离}、\term{prop:log-distortion-additivity}{对数畸变的加法记账} & \navkind{定义／命题} & 进入 Teichmüller 的解析变形和距离 \\
+\bottomrule
+\end{longtable}
+\endgroup
+
+\end{document}

@@ -1,0 +1,1990 @@
+\documentclass[UTF8,fontset=none,a4paper,11pt]{ctexart}
+
+\setCJKmainfont[Path=/System/Library/Fonts/Supplemental/]{Songti.ttc}
+\setCJKsansfont[Path=/System/Library/Fonts/Supplemental/]{Songti.ttc}
+\setCJKmonofont[Path=/System/Library/Fonts/Supplemental/]{Songti.ttc}
+
+\usepackage{geometry}
+\usepackage{amsmath,amssymb,amsthm,mathtools}
+\usepackage{booktabs,tabularx,longtable,array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\geometry{margin=2.5cm}
+\emergencystretch=3em
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  citecolor=green!40!black,
+  urlcolor=blue!60!black
+}
+
+\newtheorem{definition}{定义}[section]
+\newtheorem{proposition}[definition]{命题}
+\newtheorem{researchtarget}[definition]{研究目标}
+\newtheorem{remark}[definition]{说明}
+
+\title{\textbf{可变黎曼曲面的统一纲领}\texorpdfstring{\\}{：}从 Teichmüller 的原始路线到可验证形式化核心}
+\author{研究笔记与 Lean 原型}
+\date{持续更新版：\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+本文不是声称已经完成 Teichmüller 理论的形式化，而是重建一条可继续推进的研究路线。出发点是 Oswald Teichmüller 的
+\emph{Veränderliche Riemannsche Flächen}（可变黎曼曲面）计划：用标记、解析族和局部变形坐标，把黎曼曲面的变化、模空间的结构以及普适族放入同一个框架。本文先整理复分析、几何、拓扑和模函数的基础接口，再把其中最稳定的结构层写入 Lean。当前 Lean 代码已经在自包含层严格定义了拓扑空间、连续映射、同伦闭包、标记相容关系和相应商空间，并在 Mathlib 适配层具体实现了 $SL_2(\mathbb Z)$ 的矩阵单元与乘法；全纯性、标准单位区间上的同伦、Beltrami 方程、普适族的存在性等高级定理被明确保留为后续目标。
+\end{abstract}
+
+\tableofcontents
+
+\section{研究判定：丢失的是统一语言，不是数学对象}
+
+本文采取如下判断。
+
+\begin{quote}
+Teichmüller 的原始方案作为一条由单一研究者持续推进的“大统一路线”确实中断了；但是它的核心对象和普适性思想并没有消失，而是被 Ahlfors--Bers 的拟共形分析、Kodaira--Spencer 的变形理论、Grothendieck 的模函子和普适族、双曲几何以及现代模空间理论分别继承。
+\end{quote}
+
+1944 年的论文是 Teichmüller 关于模问题的最后工作，很多地方给出了思想而没有给出完整技术细节。历史评论特别指出，该文已经包含 universal Teichmüller curve、fine moduli、解析结构以及周期映射等想法 \cite{ACampo2012,ACampo2016}。因此本项目的推进策略不是凭空发明另一个“大统一理论”，而是把这条被分流的路线重新写成一个可检查的接口系统。
+
+\subsection{三种原始结构}
+
+按照相关历史评注，Teichmüller 在这条路线中明确引入了三个关键概念 \cite{ACampo2012}：
+
+\begin{enumerate}[label=(\arabic*)]
+  \item \textbf{拓扑决定（topological determination）}：给黎曼曲面附加一个从固定拓扑曲面来的标记；
+  \item \textbf{解析族（analytic family）}：把一族黎曼曲面看作纤维化对象，而不是一堆孤立曲面；
+  \item \textbf{turning-piece 坐标}：在简单闭曲线的环形邻域中改变复结构，形成局部变形参数；它可以看作后来 Fenchel--Nielsen 扭转坐标的先声。
+\end{enumerate}
+
+这三项并不是三个相互独立的定理，而是一个统一机制的三个层次：标记消除模问题中的自同构歧义，解析族描述参数如何变化，局部变形坐标提供可计算的方向。
+
+\section{统一核心的现代重写}
+
+\subsection{标记黎曼曲面与 Teichmüller 空间}
+
+固定一个闭的、可定向的拓扑曲面 $S$。一个标记黎曼曲面是二元组
+\[
+  (X,m),\qquad m:S\longrightarrow X,
+\]
+其中 $X$ 是黎曼曲面，$m$ 是保持拓扑类型的标记。两个标记对象等价，当且仅当存在双全纯映射 $f:X\to Y$，使得
+\[
+  n^{-1}\circ f\circ m:S\longrightarrow S
+\]
+同伦于恒等映射。
+
+于是形式上的 Teichmüller 空间是
+\[
+  \mathcal T(S)
+  =\{(X,m)\}/\text{标记相容的双全纯等价}.
+\]
+
+忘掉标记以后，映射类群 $\operatorname{Mod}(S)$ 作用在 $\mathcal T(S)$ 上，模空间则是商
+\[
+  \mathcal M(S)=\mathcal T(S)/\operatorname{Mod}(S).
+\]
+这里的顺序非常重要：先构造无轨道奇点的标记空间，再通过映射类群取商，正是 Teichmüller 路线把“模参数”变成空间的关键。
+
+\subsection{解析族与普适性质}
+
+一个解析族可以抽象写作
+\[
+  \pi:\mathcal X\longrightarrow B,
+\]
+其中每个纤维 $\mathcal X_b=\pi^{-1}(b)$ 都是黎曼曲面，并且局部坐标随 $b$ 全纯变化。普适族应满足：任意带有相应标记或 rigidification 的解析族 $\mathcal Y\to B$，都存在一个（在适当等价意义下唯一的）全纯映射
+\[
+  \varphi:B\longrightarrow\mathcal T(S)
+\]
+使得
+\[
+  \mathcal Y\cong \varphi^*\mathcal X.
+\]
+
+这就是把“所有可变黎曼曲面”统一到一个基空间及其一条普适纤维上的核心。Grothendieck 后来用模函子和 rigidifying functor 将这一思想写成更一般的普适性定理 \cite{ACampo2016}。
+
+\subsection{局部变形与比较坐标}
+
+给定简单闭曲线 $\gamma\subset S$，取其环形邻域 $A_\gamma$。turning-piece 变形的抽象形式是
+\[
+  \tau_\gamma:U_\gamma\longrightarrow \mathcal T(S),
+  \qquad \tau_\gamma(0)=[X,m],
+\]
+其中 $U_\gamma$ 是参数邻域，变形只在 $A_\gamma$ 的局部模型中发生。后续需要比较三类坐标：
+
+\begin{itemize}
+  \item turning-piece 坐标；
+  \item Fenchel--Nielsen 长度与扭转坐标；
+  \item 周期或 Hodge 坐标。
+\end{itemize}
+
+“统一”在这里不是要求三种坐标字面相同，而是要求它们能够通过明确的转换定理描述同一个变形函子。
+
+\section{基础信息：四条支撑轴}
+
+\subsection{复分析轴}
+
+需要掌握的最小链条是
+\[
+\text{全纯函数}
+\to \text{黎曼映射定理}
+\to \text{黎曼曲面}
+\to \text{Beltrami 方程}
+\to \text{拟共形变形}
+\to \text{二次微分}.
+\]
+
+在固定黎曼曲面 $X$ 上，Beltrami 微分可形式化地写为
+\[
+  \mu(z)\,\frac{d\overline z}{dz},
+  \qquad \lVert\mu\rVert_\infty<1.
+\]
+它描述复结构的无穷小或有限变形。二次微分
+\[
+  q=\varphi(z)\,dz^2
+\]
+提供水平与垂直方向，并在 Teichmüller 极值映射中产生最重要的几何方向。
+
+形式化难点不是定义符号，而是要构造可测函数空间、几乎处处相等、弱导数以及 Beltrami 方程的存在唯一性。当前 Lean 已经越过“只有占位谓词”的第一步：
+\texttt{MathlibBeltrami.lean} 以显式测度 $m$ 定义可测且本质有界的
+\texttt{BeltramiCoefficient m}，定义实导数的复线性与反线性部分，并把
+\texttt{BeltramiEquationOn} 写成逐点方程。对零系数，代码证明了在开坐标域上
+\[
+\texttt{BeltramiEquationOn }0\,f\,U
+\quad\Longleftrightarrow\quad
+\mathrm{DifferentiableOn}_{\mathbb C}(f,U).
+\]
+\texttt{BeltramiCoefficient.pullback} 还在图表坐标变换满足绝对连续测度运输时给出系数的拉回；
+代码现在证明拉回的恒等律与复合律，这正是测度运输版本的坐标变换 cocycle 核心。
+\texttt{BeltramiChartDeformation} 把方程和开坐标域、局部映射封装在一起，
+\texttt{BeltramiFamilyData} 则记录变动域、逐纤维方程以及总坐标域上的联合连续映射。
+新增的参数连续族结构要求对每个固定坐标 $z$，系数值随基空间参数连续，
+但不把系数对 $z$ 的一般可测性强行提升为连续性；零系数恒等族给出这一层的标准测试对象。
+新文件 \texttt{MathlibBeltramiCocycle}\allowbreak\texttt{.lean} 进一步把图表索引、
+过渡映射、测度绝对连续性和系数兼容性封装为标量传输 cocycle，并证明三重拉回等于直接过渡。
+这里明确只是系数复合的中间层，还没有把坐标变换的导数项纳入完整 Beltrami 微分变换律。
+\texttt{MathlibBeltramiDifferential}\allowbreak\texttt{.lean} 现在补上了这条导数依赖层的代数核心：
+任意实线性微分都被证明可唯一写成
+\(D(z)=a z+b\overline z\)，并证明复合时
+\[
+ a_{D\circ E}=a_Da_E+b_D\overline{b_E},\qquad
+ b_{D\circ E}=a_Db_E+b_D\overline{a_E}.
+\]
+代码进一步定义 \(b/a\) 形式的微分 Beltrami 系数，证明其复合商公式，并在
+\(a\ne0\) 时证明零系数与反复线性部分为零等价。这里完成的是导数公式的可检查代数层，
+并进一步定义基于 \texttt{fderiv} 的系数，直接证明可微函数复合时的同一变换公式。
+尚未把它提升为图表上的可测微分场、弱正则性或完整曲面 cocycle。
+\texttt{MathlibBeltramiDifferentialCocycle}\allowbreak\texttt{.lean} 随后封装了点态导数传输
+cocycle，并定义要求导数场确实等于过渡函数 \texttt{fderiv} 的
+\texttt{RealDifferentiableBeltramiDifferentialTransportCocycle}；其中三重导数复合律由
+Mathlib 的 \texttt{fderiv\_comp} 推出，而不是重复作为独立假设。这里仍然没有声称测度意义下的
+几乎处处微分场、可积性或可测 Riemann 映射定理。
+\texttt{MathlibBeltramiAEEq}\allowbreak\texttt{.lean} 现在把这条路线推进到明确的测度层：
+\texttt{AEBeltramiDifferentialTransportCocycle} 记录微分场的强几乎处处可测性、系数变换律以及
+微分自同一/三重复合律的几乎处处版本；\texttt{RealDifferentiableAEBeltramiDifferentialTransportCocycle}
+再记录微分场与 \texttt{fderiv} 的几乎处处相等，并推出带 \texttt{fderiv} 的系数兼容性。
+从旧的点态结构到这一层的转换明确要求用户提供微分场的可测性，因此没有把“处处可微”不加条件地
+偷换成“可测微分场”。这一步是可检查的接口推进，不是可测 Riemann 映射定理、可积性或解存在唯一性的证明。
+\texttt{MathlibBeltramiChart}\allowbreak\texttt{.lean} 进一步把 a.e. 层接到实际
+\texttt{ComplexAtlas} 图表。由于图表过渡只在重叠域上具有规范意义，\texttt{LocalAEBeltramiDifferentialChartSystem}
+将测度限制到每个重叠，并记录真实的图表过渡、其 a.e. 可测性、微分与 \texttt{fderiv} 的 a.e. 相等，
+以及三重重叠测度在过渡映射下的绝对连续运输。Lean 还证明了实际图表过渡在三重重叠上的复合恒等式，
+并由该运输、重叠开性和 \texttt{fderiv\_comp} 推导局部 a.e. 链式律，而不再把链式律作为独立字段。
+\texttt{FamilyLocalAEBeltramiData} 将该局部系统逐纤维赋给具体的
+\texttt{ComplexSurfaceFamily.Family}；常值复平面族提供了一个有实际内容的回归模型。
+一般图表微分场的可测性构造以及可测 Riemann 映射定理仍未由该接口自动给出。
+\texttt{C1ComplexAtlas} 现在提供了第一层可构造的正则性接口；更重要的是，
+\texttt{ComplexAtlas.toC1ComplexAtlas} 已能从现有的开重叠与全纯过渡自动生成它。
+Mathlib 的复解析正则性定理给出光滑性，再由限制标量把复导数识别为实意义的 \texttt{fderiv}，
+从而证明重叠上的实导数连续。\texttt{C1LocalBeltramiInput.toLocal} 随后把微分场定义为重叠上的
+\texttt{fderiv} 指示函数（重叠外取零），由连续集上的可测性定理推出强 a.e. 可测性，并由限制测度直接推出
+其与 \texttt{fderiv} 的 a.e. 相等。系数兼容性和三重重叠测度的绝对连续运输仍明确保留为解析输入；
+常值复平面例子已经回归这一自动生成过程。
+在此基础上，\texttt{FiniteMeasureC1LocalBeltramiInput} 将“每张图表测度有限”作为一个明确的附加分析输入。
+\texttt{BeltramiCoefficient.integrable} 用可测性、本质有界性与 Mathlib 的有限测度有界可积定理证明系数的
+Bochner 可积性，\texttt{integrable\_restrict} 再把它传到每个重叠限制测度；复平面的有限测度输入提供了回归实例。
+这只是可积性的充分条件接口，并不声称可测 Riemann 映射定理或方程解的存在性。
+对于不假定有限的图表测度，\texttt{DominatedC1LocalBeltramiInput} 改为接收每张图表上的可积实值主控函数，
+并通过 Mathlib 的支配可积性定理证明系数及其重叠限制的可积性；零系数复平面输入给出不依赖测度有限性的回归模型。
+新文件 \texttt{MathlibBeltramiFamily}\allowbreak\texttt{.lean} 进一步定义
+\texttt{BeltramiCompatibleFamily}：它把 Beltrami 坐标域以开嵌入方式放入真实的
+\texttt{ComplexSurfaceFamily.Family} 总空间，并严格证明投影相容。这只完成了“数据、定位与退化情形”的严格接口；
+可测 Riemann 映射定理、解的存在唯一性、完整图表间 cocycle 相容性以及普适性仍未形式化。
+
+\subsection{几何轴}
+
+均匀化定理把高亏格曲面与双曲几何连接起来。研究路线通常为
+\[
+\begin{aligned}
+\text{曲率与度量}
+&\to \text{均匀化}
+\to \text{双曲曲面}
+\to \text{极值长度},\\
+&\to \text{Fenchel--Nielsen 坐标}
+\to \text{Weil--Petersson 几何}.
+\end{aligned}
+\]
+
+在这个语言中，Teichmüller 空间既可看作复结构空间，也可看作带标记的双曲结构空间。turning-piece 坐标的局部扭转解释，正是在这条几何轴上最容易被计算和比较。
+
+\subsection{拓扑轴}
+
+拓扑轴的最小对象包括：曲面的分类、简单闭曲线、同伦与同位、基本群以及映射类群。标记关系中的核心表达式是
+\[
+  n^{-1}fm\simeq\operatorname{id}_S.
+\]
+映射类群通过
+\[
+  \operatorname{Mod}(S)=\pi_0\operatorname{Homeo}^+(S)
+\]
+记录所有允许的标记变化。形式化时，等价关系的自反、对称和传递性是比分析存在定理更早、也更适合 Lean 验证的目标。
+
+\subsection{模函数与低亏格模型}
+
+模函数提供一个低亏格的可计算模型。亏格一的黎曼曲面可以由上半平面上的参数 $\tau$ 描述，并受到
+\[
+  \mathrm{SL}_2(\mathbb Z):\tau\longmapsto\frac{a\tau+b}{c\tau+d}
+\]
+的作用。模函数是对这一作用不变的亚纯函数；模形式则带有权重变换律。
+
+这一部分在本纲领中有三种作用：
+
+\begin{enumerate}[label=(\arabic*)]
+  \item 用 $\mathbb H/\mathrm{SL}_2(\mathbb Z)$ 展示“参数空间再取商”的最小例子；
+  \item 用椭圆曲线周期理解周期映射；
+  \item 用 modular $\lambda$ 函数研究四 puncture 球面的显式模参数。
+\end{enumerate}
+
+因此，模函数不是与 Teichmüller 理论无关的旁支，而是把“复结构--群作用--模空间--算术函数”压缩到可计算例子的桥梁。
+
+\section{向后推进的研究程序}
+
+本项目把“重建统一性”转换为一组可以逐层失败、逐层验证的目标。
+
+\begin{longtable}{p{0.13\textwidth}p{0.31\textwidth}p{0.45\textwidth}}
+\toprule
+阶段 & 数学对象 & 可验证成果 \\
+\midrule
+$P_0$ & 四条基础轴 & 统一符号、定义、例子与依赖图 \\
+$P_1$ & 拓扑、同伦与标记 & 连续映射、同伦关系、标记相容关系与 Teich 型商空间 \\
+$P_{1.5}$ & Mathlib 实体层 & 标准单位区间、复图表、全纯过渡与诱导拉回拓扑 \\
+$P_2$ & 解析族 & 纤维、拉回、普适性质的结构接口 \\
+$P_3$ & turning-piece 变形 & 局部坐标接口，与 Fenchel--Nielsen 坐标比较 \\
+$P_4$ & 周期与模函数 & 低亏格例子、周期映射和群作用的兼容性 \\
+$P_5$ & 现代桥接 & 高阶 Teichmüller、Higgs bundle、几何朗兰兹的明确交汇点 \\
+\bottomrule
+\end{longtable}
+
+\begin{researchtarget}[第一版的可交付目标]
+建立一个不依赖“高级定理已成立”的 Lean 结构核心：
+\begin{enumerate}[label=(\alph*)]
+  \item 定义拓扑空间、开集、连续映射和乘积拓扑；
+  \item 以显式同伦闭包构造标记相容关系，并证明其等价关系性质；
+  \item 将 Teichmüller 型空间定义为该关系的商；
+  \item 在下一层定义复结构、黎曼曲面和标记黎曼曲面的图册接口；
+  \item 记录解析族、普适族和 turning-piece 坐标的接口；
+  \item 用 Mathlib 的标准拓扑、同伦、复微分和诱导拓扑复现上述链条；
+  \item 证明商映射尊重标记相容关系。
+\end{enumerate}
+\end{researchtarget}
+
+\section{Lean 形式化边界与代码对应}
+
+代码位于 \texttt{lean/Teichmuller/}。当前实现包含一个不依赖 Mathlib 的可编译拓扑层、复结构图册层以及解析族的结构接口；同时已经接入固定版本的 Mathlib，并把标准单位区间同伦、复图表与 \texttt{DifferentiableOn} 过渡、诱导拉回拓扑、模群的整数矩阵代数、上半平面 \(\mathbb H\)、基本域代表性、level-one 非恒定模形式、第一个权零商函数以及 Beltrami 数据的第一层推进到可编译的具体层。权零商的全纯/亚纯延拓、Beltrami 解的存在唯一性、解析族存在性和真正的普适族构造仍在后续推进。
+
+\begin{center}
+\scriptsize
+\begin{tabularx}{\textwidth}{>{\ttfamily}lX}
+\toprule
+文件 & 内容 \\
+\midrule
+Core.lean & 结构层：拓扑曲面、复结构、黎曼曲面、homeomorphism、标记对象、解析族、普适族、turning-piece 坐标 \\
+Topology.lean & 自包含拓扑层：开集公理、乘积/诱导/子空间拓扑、连续映射配对、拓扑同构、同伦闭包与商 \\
+Complex.lean & 复结构图册层：局部坐标图、覆盖、过渡映射、全纯理论闭包与全纯映射 \\
+Family.lean & 解析族层：依赖和式总空间、连续投影、标记族、拉回函子性、纤维等价群胚与分类见证 \\
+MathlibTopology.lean & Mathlib 拓扑适配：实际的 \texttt{TopologicalSpace}、\texttt{Homeomorph}、标准单位区间同伦、标记商 \\
+MathlibComplex.lean & Mathlib 复结构适配：\(\mathbb C\) 图表、开域/开值域、参数平移图表、\texttt{ContinuousOn} 与 \texttt{DifferentiableOn} 过渡、族投影坐标兼容性 \\
+MathlibFamily.lean & Mathlib 族适配：未标记依赖和总空间、规范拉回与诱导拓扑、固定标记骨架、连续投影、逐纤维等价与普适性接口 \\
+MathlibFiberBundle.lean & Mathlib 纤维丛适配：FiberBundle witness、标准拉回、局部平凡化、图表级全纯纤维等价、全局解析族与全局拉回分类接口 \\
+MathlibTorus.lean & 格点商复环面：覆盖映射、局部提升、离散格点过渡、复图册、族与模群比较同胚、解析测试基底 \\
+MathlibBeltrami.lean & Beltrami 数据：显式测度、可测本质有界系数、有限测度下的 Bochner 可积性与一般可积主控定理、归一化解与逐点/a.e. 参数化解族见证、测度运输拉回及其恒等/复合律、实导数复/反复线性分解与零系数回归 \\
+MathlibBeltramiAffine.lean & 非零常系数回归：显式仿射解及逆映射、实 Fréchet 导数、复/反复线性部分、逐点 Beltrami 方程、无穷远点扩张与归一化解见证 \\
+MathlibBeltramiCocycle.lean & 标量 Beltrami 传输 cocycle：索引图表、可测过渡、测度绝对连续性、系数兼容性与三重拉回定理 \\
+MathlibBeltramiDifferential.lean & 导数依赖层：实线性微分的复/反复线性分解、复合系数公式、微分 Beltrami 商、复合变换律与严格小于一系数下的椭圆性估计 \\
+MathlibBeltramiContraction.lean & 条件化 Banach 层：完整扩张度量状态空间、压缩算子、迭代收敛、先验误差估计以及固定点与归一化解的编码/解码唯一性接口 \\
+MathlibBeltramiNeumann.lean & Neumann 算子层：完备复范数空间中的 \(u=g+Ku\) 唯一解、迭代收敛、几何误差界、先验范数估计及 \(K=\mu B\) 的标量回归 \\
+MathlibBeltramiMultiplier.lean & \(L^p\) 系数乘法层：本质有界复系数、真实乘法算子 \(M_\mu\)、范数估计、与候选奇异算子复合及 \(L^p\) Neumann 接口 \\
+MathlibBeltramiFourier.lean & Fourier 侧 \(L^2\) Beurling 模型：符号 \(m(\xi)=\overline{\xi}/\xi\)、可测性、模长控制、Plancherel 共轭、物理侧范数 \(\leq 1\) 及 Neumann 桥 \\
+MathlibBeltramiCalderonZygmund.lean & Calderón--Zygmund 边界：核的点态范数、四分之一转动反对称性、截断上界与离散点态极限、环带截断差、环带主值 Cauchy 数据、主值与 \(L^p\) 算子识别桥、避开奇点时的支配收敛、有限圆盘线性组合的精确抵消、二次圆盘的局部振荡主控与显式主值、整数阶消失族、主控数据的加法闭包及二项二次叠加、统一尾估计到主值收敛的桥接，以及 \(L^p\) 算子见证 \\
+MathlibBeltramiNeumannFamily.lean & 参数族 Neumann 层：固定核、连续强迫项、统一收缩常数下的解稳定性估计与连续解族 \\
+MathlibBeltramiNeumannOperatorFamily.lean & 可变算子族 Neumann 层：连续核、连续强迫项、统一收缩半径、核差异稳定性估计与连续固定点族 \\
+MathlibBeltramiDifferentialCocycle.lean & 点态微分传输 cocycle、导数等于过渡映射 \texttt{fderiv} 的真实可微扩展，以及由 \texttt{fderiv\_comp} 推出的链式法则 \\
+MathlibBeltramiAEEq.lean & 几乎处处层：微分场强可测性、系数/微分 cocycle 的 a.e. 兼容律、与 \texttt{fderiv} 的 a.e. 相等及其保守转换 \\
+MathlibBeltramiChart.lean & 实际图表桥：重叠限制测度、三重重叠测度运输、真实过渡、由 \texttt{fderiv\_comp} 推导的局部 a.e. 链式律、可构造的 C1 微分场、有限测度下的系数可积性与逐纤维族接口 \\
+MathlibBeltramiFamily.lean & Beltrami 与实际解析族的桥：开嵌入到族总空间、族投影相容性与后续 cocycle 的定位接口 \\
+Program.lean & 等价关系、商空间以及后续研究目标的可执行声明 \\
+Modular.lean & $SL_2(\mathbb Z)$ 矩阵的行列式、乘法、单位元与结合律，以及抽象群作用和模函数不变性接口 \\
+ModularMathlib.lean & Mathlib 的 $SL(2,\mathbb Z)$、上半平面 $\mathbb H$、Möbius 作用、基本域、$E_4,E_6,\Delta$ 与 $j$ 型权零商的桥接 \\
+Main.lean & 构建入口与编译检查 \\
+\bottomrule
+\end{tabularx}
+\normalsize
+\end{center}
+
+\subsection{Mathlib 适配与模群代数层}
+
+项目现在通过 \texttt{lakefile.lean} 固定使用 Mathlib 的
+\texttt{last\_bump\_for\_v4.31.0} 分支，并配套 Lean
+\texttt{v4.31.0-rc1}。这不是把整个拓扑层一次性改写成 Mathlib，而是先选取一条能直接支撑研究路线的代数切口：
+\texttt{SL2ZMatrix} 已经是带有
+\[
+  ad-bc=1
+\]
+约束的整数矩阵，代码具体定义了单位矩阵、矩阵乘法，并用 \texttt{ring} 和
+\texttt{norm\_num} 证明行列式约束在乘法下保持；随后证明单位元律和结合律，构造
+\texttt{SL2ZMatrix.monoidSpec}。因此现在的模函数层已经不只是“群作用”的命名接口，而是有一个真实可计算的模群候选对象。
+
+这里仍要区分三件事：自包含的矩阵代数已经具体化；Mathlib 的实际上半平面作用已经接入；解析模函数的结构字段已经具体化，但非平凡经典例子和相应定理尚未证明。后一边界很重要，因为“有群作用”和“存在解析模函数”是不同层次的断言。
+
+\subsection{Mathlib 的上半平面与基本域桥接}
+
+新文件 \texttt{ModularMathlib.lean} 不再重新声明一个抽象的复平面，而直接使用 Mathlib 的
+\texttt{UpperHalfPlane}（记作 \(\mathbb H\)）以及 \(SL(2,\mathbb Z)\) 的 Möbius 作用。代码定义了具体作用的 \texttt{ActionSpec}，并把带有实际不变性证明字段的 \texttt{MathlibModularFunction} 映射到前一层的抽象模函数接口。这样，抽象层仍然保留可替换性，而具体层已经能调用真实的复数对象和拓扑结构。
+
+同时给出了自定义四元整数矩阵模型到 Mathlib
+\(SL(2,\mathbb Z)\) 的显式单射，其实现名称为
+\[
+\texttt{SL2ZMatrix.toMathlib}.
+\]
+这一步没有把两种表示法未经证明地识别，而是保留了表示转换及其单射定理。Mathlib 已提供的基本域结果现在可以直接写成
+\[
+  \forall\tau\in\mathbb H,\quad
+  \exists\gamma\in SL(2,\mathbb Z),\quad
+  \gamma\cdot\tau\in\mathcal D,
+\]
+并且在开基本域中证明代表元的唯一性（在当前作用约定下表现为 \(\tau=\gamma\cdot\tau\)）。此外，\(T\) 与 \(S\) 的生成元公式分别记录为
+\[
+  T\cdot\tau=\tau+1,\qquad
+  S\cdot\tau=-\frac{1}{\tau}.
+\]
+
+这一步已经把“复数上半平面 \(\to\) 离散模群作用 \(\to\) 模空间基本域”的主干接上。Mathlib 的模形式层提供了 level-one 的 \(E_4\)、\(E_6\) 以及非恒定模判别式 \(\Delta\)，并且 GradedRing 层给出实际恒等式
+\[
+  \Delta(\tau)=\frac{E_4(\tau)^3-E_6(\tau)^2}{1728}.
+\]
+项目随后定义
+\[
+  j_{\mathrm{type}}(\tau)=\frac{1728E_4(\tau)^3}{\Delta(\tau)}
+\]
+并用 \(\Delta(\tau)\ne0\) 和模形式的 slash 变换律证明
+\(j_{\mathrm{type}}(\gamma\tau)=j_{\mathrm{type}}(\tau)\)。这个对象已分别封装为具体的
+\texttt{MathlibModularFunction} 和前一层的抽象 \texttt{ModularFunction}；但项目尚未声称完成紧化尖点处的亚纯延拓、模曲线商空间或 Teichmüller 普适族，这些仍需要后续的亚纯性与商空间定理。
+
+在复分析层，\texttt{HolomorphicModularFunction} 现在要求一个函数
+\(f:\mathbb C\to\mathbb C\)，满足
+\[
+  \operatorname{DifferentiableOn}(\mathbb C,f,\mathbb H),
+  \qquad f(\gamma\cdot\tau)=f(\tau).
+\]
+其中 \(\mathbb H\) 由实际条件 \(0<\operatorname{Im}z\) 作为 \(\mathbb C\) 的子集给出。代码还证明了每个常值函数都是这一结构的实例，并给出忘却解析性的映射；因此这里已经从抽象的 \texttt{Prop} 占位推进到 Mathlib 的复微分谓词。当前的 $j$ 型函数先以定义域为 \(\mathbb H\) 的具体不变函数存在，尚未把“商 of 全纯函数”这一事实转写为全局 \(\texttt{HolomorphicModularFunction}\) 的字段，也尚未处理紧化点。
+
+与此并行，\texttt{MathlibLevelOneModularForm} 和
+\texttt{MathlibLevelOneCuspForm} 直接复用 Mathlib 的模形式对象。代码具体命名了
+\(E_4\)、\(E_6\) 和判别式
+\[
+  \Delta=\eta^{24}\in S_{12}(SL_2(\mathbb Z)),
+\]
+并证明了
+\[
+  \Delta(\tau)\ne0\quad(\tau\in\mathbb H),\qquad
+  [q^1]\,\Delta=1.
+\]
+第二个等式是非恒定性的形式证书：它说明 \(q\)-展开并非零常数级数。权重消去现在已经完成第一步：把权 \(4\) 的对象取三次方得到权 \(12\)，再除以权 \(12\) 的 \(\Delta\)，并在 \(\Delta\ne0\) 的基础上形式化了不变性。下一步应证明这个商在 \(\mathbb H\) 上的复解析性质，并把它推进到含尖点的亚纯函数/模曲线层。
+
+Lean 中的核心定义可概括为
+\[
+  \mathsf{Teich}(S)=
+  \mathsf{Quotient}\bigl(\mathsf{MarkedRiemannSurface}(S),\sim\bigr).
+\]
+当前的 \texttt{MarkingRelation} 仍是旧核心中的抽象接口；新加入的 \texttt{Topology.lean} 则已经把其拓扑前置部分具体化。它用自包含的集合表示和开集公理，把核心对象分成三组：
+
+\begin{itemize}
+  \item 拓扑与连续性：\texttt{Topology}、乘积拓扑、诱导/子空间拓扑、\texttt{Continuous}、\texttt{ContinuousMap}、\texttt{TopologicalEquiv}；
+  \item 同伦：\texttt{HomotopyRelation}；
+  \item 标记与商：\texttt{MarkingRelated} 以及相应的 quotient。
+\end{itemize}
+
+因此现在有两条清晰的层次：旧接口保证研究骨架可编译，新层证明拓扑与同伦部分的实际结构性质。两者尚未合并为完整的黎曼曲面对象，这是有意保留的边界。
+
+新层的核心链条可以写成
+
+\[
+\begin{aligned}
+\mathsf{Topology}(X)&\longrightarrow
+\mathsf{Continuous}(f)\longrightarrow
+\mathsf{HomotopyRelation}(f,g),\\
+\mathsf{MarkedTopologicalObject}(S)&\longrightarrow
+\mathsf{MarkingRelated}(X,Y)\longrightarrow
+\mathsf{Quotient}(\mathsf{MarkingRelated}).
+\end{aligned}
+\]
+
+对两个标记对象 $(X,m_X)$ 与 $(Y,m_Y)$，新层的关系要求存在拓扑同构 $e:X\to Y$，使
+
+\[
+e\circ m_X\simeq m_Y.
+\]
+
+自包含层仍然把直接圆柱同伦放进一个显式的自反、对称、传递闭包中，以保证独立核心可以编译。与此同时，Mathlib 适配层已经使用标准单位区间上的 \texttt{ContinuousMap.Homotopic}，并直接调用其反向、拼接与等价关系定理。这样，旧层的保守闭包与实体 Mathlib 层的标准同伦可以并存，边界也不会被混淆。
+
+在已经固定 Mathlib 依赖之后，下一步仍应依次实现：
+
+\begin{enumerate}[label=(\arabic*)]
+  \item 将自包含拓扑层的对象与 Mathlib 的标准对象逐步建立保结构映射；
+  \item 将现有 $j$ 型商的 \(\mathbb H\)-域不变函数证明提升为全纯/亚纯函数结构，并进一步处理尖点紧化与模曲线商；
+  \item 解析族的 Mathlib \texttt{FiberBundle} 局部平凡性与图表级全纯变化；
+  \item 已完成标量 Beltrami 传输 cocycle、拉回恒等/复合律、固定坐标下的参数连续性、实线性微分的复/反复线性复合公式、由 \texttt{fderiv\_comp} 导出的点态微分 cocycle、记录强可测性和几乎处处兼容律的微分场接口，以及绑定实际 \texttt{ComplexAtlas} 重叠的局部图表接口；当前还已将三重重叠测度的绝对连续运输形式化，并由此推导局部 a.e. 链式律；新增 \texttt{ComplexAtlas.toC1ComplexAtlas} 可由全纯过渡自动生成连续的实导数场，再由 \texttt{C1LocalBeltramiInput.toLocal} 生成强 a.e. 可测微分字段；\texttt{FiniteMeasureC1LocalBeltramiInput} 又把有限测度作为附加输入，并形式化系数及其重叠限制的 Bochner 可积性；下一步推进系数运输的可测/可积条件、可测解的存在唯一性以及与复图册的相容性；
+  \item 普适性定理的可表达版本。
+\end{enumerate}
+
+\begin{remark}
+“接口已经编译”不等于“Teichmüller 定理已经形式化”。形式化的价值在于把哪些内容是定义、哪些内容是公理接口、哪些内容仍需证明清楚分开。
+\end{remark}
+
+\section{正式化推进一：拓扑、同伦与标记关系}
+
+本节记录已经落地的第一步。它不是把黎曼曲面理论偷偷塞进一个类型，而是先把 Teichmüller 构造所依赖的拓扑骨架独立出来。
+
+\subsection{拓扑与连续性}
+
+在 \texttt{Topology.lean} 中，拓扑空间由开集谓词和三条闭包性质组成：全集开、有限交开以及任意并开。乘积拓扑用开矩形的局部刻画定义，并由此严格证明两个投影连续。连续性采用逆像定义：
+
+\[
+\operatorname{Continuous}_{X,Y}(f)
+\;:\Longleftrightarrow\;
+\forall U\;(U\text{ 在 }Y\text{ 中开}\Rightarrow f^{-1}(U)\text{ 在 }X\text{ 中开}).
+\]
+
+代码同时给出连续映射的复合、连续映射结构以及双向连续的拓扑同构。这一步的意义是：后续标记不再只是裸集合之间的双射，而可以要求保持实际拓扑。
+
+同时加入了按逆像定义的诱导拓扑和子空间拓扑，并证明诱导映射以及子空间包含映射连续。这为解析族的总空间、拉回空间和局部图表的重叠区域提供了统一的拓扑构造入口；目前它们仍使用自包含的集合接口，之后可直接对接 Mathlib 的同名构造。
+
+还证明了连续函数的配对定理：若 $f:Z\to X$ 与 $g:Z\to Y$ 连续，则 $(f,g):Z\to X\times Y$ 连续。证明直接展开积拓扑的开矩形并用任意并闭包恢复逆像开集，这为后续拉回复合和族的局部坐标拼接提供了基本工具。
+
+\subsection{同伦闭包与标记相容}
+
+给定一个带有两个端点的拓扑参数 $I$，直接同伦是一个连续映射
+
+\[
+H:I\times X\longrightarrow Y,
+\qquad H(0,x)=f(x),\quad H(1,x)=g(x).
+\]
+
+代码将直接同伦的自反、对称、传递闭包命名为 \texttt{HomotopyRelation}，并证明连续后复合保持该关系。于是固定参考拓扑空间 $(S,\tau_S)$ 后，一个标记对象包含
+
+\[
+m:S\xrightarrow{\cong}X,
+\]
+
+其中 $m$ 是拓扑同构；两个标记对象相容，当且仅当存在拓扑同构 $e:X\to Y$ 满足
+
+\[
+e\circ m_X\;\mathrel{\texttt{HomotopyRelation}}\;m_Y.
+\]
+
+该关系的自反、对称和传递性已经在 Lean 中由拓扑同构的复合、逆映射以及同伦的后复合证明。因此可以严格形成相应商空间，并证明相容标记给出相同的商点。
+
+\subsection{还没有跨过的边界}
+
+这一层仍然没有使用 $\mathbb R$、$\mathbb C$ 或局部欧氏图册，也没有证明任何黎曼映射定理。复结构图册层已经作为下一层的结构接口加入，但它把全纯性保留成显式参数；因此旧的 \texttt{MarkingRelation} 尚未被完整的拓扑--解析关系替代。
+
+\section{正式化推进二：复结构图册}
+
+\texttt{Complex.lean} 在拓扑层之上加入局部坐标，但暂不把“有一个图册”误认为“复分析定理已经完成”。其基本对象是：
+
+\begin{itemize}
+  \item \texttt{LocalChart}：具有开定义域、开值域、互逆映射以及相对连续性的局部坐标图；
+  \item \texttt{transitionMap}：两个坐标图在重叠区域上的显式过渡映射；
+  \item \texttt{TransitionData}：要求过渡数据在重叠处与坐标转换一致，并满足一个命名的全纯性谓词；
+  \item \texttt{HolomorphicTheory} 与 \texttt{HolomorphicMap}：记录恒等、限制和复合规律，把全纯性从裸命题提升为可替换的理论对象；
+  \item \texttt{ComplexAtlas}：图册覆盖每个点，并为每一对图表提供过渡数据；
+  \item \texttt{AtlasRiemannSurface} 与 \texttt{MarkedAtlasSurface}：把图册装入曲面，并重新接上拓扑标记。
+\end{itemize}
+
+在 Lean 中，全纯性被保留为参数
+\[
+  \mathsf{isHolomorphicOn}:\mathsf{Set}(M)\to(M\to M)\to\mathsf{Prop}.
+\]
+这一步的好处是依赖关系变得可见：图册覆盖、连续性和重叠一致性已经是结构字段；真正的复微分、链式法则和过渡映射的解析性则等待把模型 $M$ 取为 $\mathbb C$，并接入 Mathlib 的复微分谓词。之后才能把图册层与解析族、Beltrami 变形以及普适性质连接起来。
+
+\section{正式化推进三：解析族、拉回与普适性接口}
+
+在图册层之上，\texttt{Family.lean} 把“曲面随参数变化”写成一个真正的依赖类型结构。对基空间 $B$，族的总空间取为纤维的依赖和
+\[
+  \mathcal X=\sum_{b:B}X_b,
+  \qquad \pi(b,x)=b.
+\]
+因此每个纤维 $X_b$ 是实际的类型，投影 $\pi$ 具有连续性证明；总空间拓扑则作为数据提供，暂不假定某个尚未实现的生成拓扑定理。族还保留一个命名的 \texttt{analyticVariation} 字段，标记真正的解析局部平凡性仍未完成。
+
+对连续映射 $f:C\to B$，代码定义了拉回族的纤维
+\[
+  f^*\mathcal X\;\text{在 }c\text{ 处的纤维}=X_{f(c)}.
+\]
+代码现在还给出了规范拉回拓扑：将 $(c,x)$ 映到 $(c,(f(c),x))\in C\times\mathcal X$，再取该映射诱导的拓扑；由诱导映射连续和积空间第一投影连续，严格证明拉回投影连续。一般的显式拓扑参数版本仍保留，用来表达未来需要比较的其他拓扑模型。\texttt{MarkedSurfaceFamily} 则给每个纤维附加从固定参考曲面来的拓扑标记。
+
+这一层还补上了诱导拓扑的反向判据：若复合映射 $f\circ g$ 连续，则 $g$ 到 $f$ 的诱导拓扑连续。由此，在 $g:D\to C$ 连续时，代码给出
+\texttt{canonicalPullback\_comp\_equiv}：先沿 $f$ 再沿 $g$ 的迭代拉回，与直接沿 $f\circ g$ 的拉回之间存在一个由恒等函数给出的拓扑等价。这里特意证明的是拓扑等价而非拓扑结构的字面相等，因为两边的诱导拓扑来自不同的总空间映射；这正是未来接入 Mathlib 的标准拉回对象时需要保留的函子性接口。
+
+本轮把同一函子性推进到 Mathlib 实体层。定理
+\texttt{pullback\_comp\_homeomorph} 证明：先沿
+$f:C\to B$ 再沿 $g:D\to C$ 拉回，与直接沿 $f\circ g$ 拉回的两个依赖和总空间，
+通过底层恒等函数给出一个 \texttt{Homeomorph}。两边的纤维项相同，但诱导拓扑分别由
+两步和一步构造，所以结论必须是拓扑同胚，而不是拓扑结构的字面相等。
+配套定理 \texttt{canonicalPullback\_comp\_fiberwiseEquiv} 又在带标记纤维层记录同一
+基变换结合律。这使“拓扑空间 $\to$ 解析族”的函子性不再只停留在自包含接口；下一步可在
+此结构上定义分类见证的相干换基。
+
+本轮继续把函子性推进到普适性质本身。给定一个全纯分类见证 $C$ 及连续换基
+$g:D\to C$，\texttt{classification\_pullback} 定义拉回后的分类见证：
+其纤维双全纯映射在 $g(d)$ 处取原见证，新的分类映射严格为
+
+\[
+  d\longmapsto C.\mathrm{map}(g(d)).
+\]
+
+因此它不是只在拓扑层搬运一个族，而是同时搬运了“族的分类数据”。相干性定理
+\texttt{pullback\_map\_comp} 进一步证明，先沿
+$g$ 再沿 $k$ 的分类映射，与直接沿 $g\circ k$ 的分类映射相等。这是普适性接口上的
+第一条相干性定理；总空间的两种拉回实现仍通过前述 \texttt{Homeomorph} 比较，而没有
+被不当地写成定义相等。
+
+本轮又把这条作用推进到参数解析层。对范数复向量空间基底的可微换基
+$g:D\to C$，\texttt{DifferentiableFamilyClassification.pullback} 复用前述全纯
+拉回见证，并由复可微链式法则证明新分类映射
+
+\[
+  d\longmapsto C.\mathrm{map}(g(d))
+\]
+
+仍然是复可微的。其复合相干定理
+\texttt{pullback\_pullback\_map} 证明两次可微换基
+与一次沿复合映射换基得到相同的分类映射。这是从“连续分类函子”向“解析分类函子”推进的
+实际 Lean 增量；它暂时只覆盖范数复向量空间基底，上半平面仍由环境中的
+\texttt{DifferentiableOn} 见证表示，尚未伪装成流形级全纯映射定理。
+
+在具体的亏格一局部模型上，本轮又闭合了测试基底的复合律。若
+$F$ 是一个像落在统一局部参数邻域内的局部全纯参数映射，而
+$G$ 的像落在 $F$ 的定义域内，则
+\texttt{ComplexTorusLocalHolomorphicParameterMap.precompose} 构造
+$F\circ G$，并由 Lean 证明其上半平面值域、局部邻域条件、连续性和
+$\texttt{DifferentiableOn}$。随后
+\texttt{complexTorusLocalHolomorphic}
+\allowbreak\texttt{ParameterClassification\_map}
+\allowbreak\texttt{\_eq\_precompose}
+证明：对复合测试基底的任意全纯分类见证，其分类映射都等于
+
+\[
+  c\longmapsto F\bigl(G(c)\bigr).
+\]
+
+证明使用的不是分类映射的定义展开，而是前面已经形式化的保持标记双全纯刚性；因此这一步把
+“标记刚性 $\to$ 参数唯一性”真正接成了“测试基底复合 $\to$ 分类映射复合”的局部模函子律。
+相应的 \texttt{ComplexTorusLocalHolomorphicClassificationWitness.precompose}
+还把环境中的可微证书一并封装。它仍然是上半平面中的亏格一局部结果，不等同于任意亏格
+Teichmüller 空间的全局普适族或流形级 Yoneda 定理。
+
+本轮进一步把这条局部结果封装成
+\texttt{ComplexTorusLocalFineModuliWitness}。它不是一个裸的存在命题，而是同时携带：
+一个实际的全纯分类见证；任意分类见证的映射都等于显式的
+\texttt{parameterPoint}；以及任意两个分类映射相等的唯一性证明。
+其构造
+\texttt{ComplexTorusLocalFineModuliWitness.precompose} 证明该证书沿允许的测试基底换基保持不变。
+在环境参数映射层，\texttt{compose}、恒等映射律和
+\texttt{precompose\_precompose\_map} 又给出单位与三重复合的函数级相干性。因此，当前
+亏格一局部模型已经不只是“有一个分类映射”，而是具备了局部测试范畴上的 fine-moduli 数据与
+函子式复合律；但量词仍只覆盖这个具体标记复环面模型，尚未扩展为任意高亏格解析族的全球普适族。
+
+\texttt{FiberwiseEquiv} 和 \texttt{FamilyClassification} 把普适性进一步变成显式数据。前者逐纤维给出保持标记的拓扑同构，并已经实现恒等、逆和复合；后者记录分类映射、连续性以及与规范拉回的纤维等价。因而“等价”不再只是一个无法操作的命题，而是可以沿测试族复合的结构。
+
+因此，\texttt{UniversalMarkedFamily} 不再只携带两个裸的 \texttt{Prop} 字段，而是要求对每个测试族给出一个分类见证。它已经把 Teichmüller 原始逻辑的箭头写全
+\[
+  \text{标记族}\longrightarrow\text{分类映射}\longrightarrow\text{普适族的拉回},
+\]
+目前分类见证已经使用这一规范诱导拓扑；下一阶段应在 Mathlib 中证明它与标准拉回/子空间拓扑等价，并把连续分类映射升级为全纯映射。
+
+在此之上新增的 \texttt{FineUniversalMarkedFamily} 单独记录分类映射的唯一性。它是带刚性化的 fine-moduli 接口，而不是从现有拓扑字段自动推出的定理；只有在真正的复结构、解析族和无自同构条件接入后，才应提供它的具体实例。
+
+本轮把“解析族”从分类接口中的兼容性字段进一步提升为独立的数据对象。
+\par
+\texttt{Global\allowbreak Holomorphic\allowbreak Marked\allowbreak Family} 要求在依赖和总空间的整个载体上给出实际的
+\texttt{ComplexSurfaceFamily\allowbreak Atlas}，并同时证明图表覆盖全集、图册拓扑就是族的总空间拓扑、
+以及图册投影就是依赖和投影。因此它不再通过旧的
+\texttt{Family.analyticVariation : Prop} 间接表示解析变化。对当前局部参数化环面拉回，
+\texttt{complexTorusLocalHolomorphicParameter\allowbreak Global\allowbreak Family} 已经是这个新接口的具体实例：
+局部测试基底上的所有纤维、总空间图表、参数第一坐标和全纯过渡都来自前面已经证明的对象。
+
+\texttt{GlobalHolomorphic\allowbreak Family\allowbreak Classification} 在逐纤维双全纯实现之外，额外携带
+规范拉回总空间上的全局图册、全集覆盖、拓扑相等和投影相等；它可忘却为旧的
+\texttt{HolomorphicFamily\allowbreak Classification}，但反向并不自动成立。\texttt{GlobalFineHolomorphicUniversal\allowbreak Marked\allowbreak Family}
+则把普适量词严格放到这些全局解析族对象上，并要求分类映射唯一。这样，原始路线中的箭头
+\[
+  \text{全局解析标记族}\longrightarrow\text{全局拉回图册}\longrightarrow\text{唯一分类映射}
+\]
+已经在类型层面被准确写出；当前代码只实例化了局部亏格一测试族，尚未声称任意高亏格族的
+全局存在性，因此真正的普适族定理仍是后续目标。
+
+本轮继续把拉回从“纤维逐点相同”推进为真正的图册函子。对基同胚
+\(e:C\mathbin{\xrightarrow{\cong}}B\)，
+\texttt{canonicalPullback\_homeomorph} 构造规范总空间同胚
+\[
+  \begin{aligned}
+  \Sigma_{c:C}F_{e(c)}&\xrightarrow{\cong}\Sigma_{b:B}F_b,\\
+  (c,x)&\longmapsto(e(c),x).
+  \end{aligned}
+\]
+\texttt{ComplexSurfaceChart.transport} 和
+\texttt{ComplexSurfaceAtlas.transport} 将每张图表沿此同胚运输；Lean 已证明运输后的重叠集与原重叠集等价，过渡函数逐点不变，因此原有的
+\texttt{DifferentiableOn} 相容性自动保留。
+这给出 \texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.pullback}：全集覆盖、总空间拓扑、参数投影和全局复图册同时被保留；
+\texttt{GlobalHolomorphic\allowbreak Family\allowbreak Classification\allowbreak.ofBaseHomeomorph} 进一步把逐纤维恒等双全纯映射组装成全局分类见证。
+这一步严格限于基同胚，尚不声称任意连续或全纯基变换都自动保留全局复结构，更不声称已构造任意亏格的普适族。
+
+\par
+下一步把尚未解决的几何条件显式化。
+\texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.Pullback\allowbreak Witness} 对任意连续基变换记录规范拉回总空间上的实际全局图册、全集覆盖、拓扑相等和投影相等；
+\texttt{GlobalHolomorphic\allowbreak Marked\allowbreak Family\allowbreak.pullbackOf} 再把这份见证组装成新的全局解析族。
+全局分类见证的 \texttt{pullbackWithWitness} 需要两份见证：一份属于测试族的拉回，另一份属于普适族沿复合分类映射的拉回。
+这不是技术性重复，而是由分类结构中“测试族图册”和“普适拉回图册”分别位于不同总空间这一依赖类型事实强制出来的。
+\texttt{GlobalDifferentiable\allowbreak Family\allowbreak Classification} 进一步要求分类映射具有真实的
+\texttt{Differentiable\allowbreak} \(\mathbb C\) 证书；在同样的拉回见证下，基变换后的证书由可微复合链式法则得到。
+因此当前已经得到一个诚实的局部解析基变换接口，但尚未声称任意连续或可微基变换自动拥有全局复图册；构造这些见证仍是下一层几何问题。
+\par
+开放基底限制现在也已在拓扑和图表层具体化。\texttt{canonicalPullback\_subtype\_homeomorph} 将
+子集 \(V\subset B\) 上的规范拉回总空间同胚到原总空间的子空间
+\[
+  \{x:\operatorname{Total}(F)\mid \pi(x)\in V\},
+\]
+而 \texttt{projection\_preimage\_isOpen} 证明 \(V\) 开时该子空间开。
+复图表方面，\texttt{ComplexSurfaceChart\allowbreak.restrictOpenSubspace} 将原图表限制到开放子空间，
+并利用旧值域的开嵌入构造新的开坐标值域。这已经给出下一步图册级开放限制定理所需的几何底座。
+
+\section{正式化推进四：Mathlib 实体链条}
+
+前面的自包含层解决的是“哪些结构必须存在”的问题；本节把同一条逻辑逐步接到 Mathlib 的实际对象。
+
+\subsection{标准同伦与标记商}
+
+\texttt{MathlibTopology.lean} 使用 Mathlib 的 \texttt{TopologicalSpace} 和 \texttt{Homeomorph}。它还用 \texttt{ContinuousMap} 表达连续映射。对固定的拓扑参考空间 \(S\)，一个标记对象的载体可以变化，标记是实际的
+\[
+  m:S\xrightarrow{\cong}X.
+\]
+两个对象相容，当且仅当存在 \(e:X\xrightarrow{\cong}Y\) 使
+\[
+  e\circ m_X\simeq m_Y
+\]
+成立，其中 \(\simeq\) 直接使用 Mathlib 的 \texttt{ContinuousMap.Homotopic}。这一步不再需要自定义的同伦闭包：Mathlib 已经提供单位区间上的反向、拼接以及等价关系定理。因此代码可以直接构造
+\[
+  \mathsf{Quotient}(\mathsf{MarkedTopologicalObject}(S)/\mathsf{MarkingRelated}).
+\]
+
+\subsection{实际复图表}
+
+\texttt{MathlibComplex.lean} 把模型固定为 \(\mathbb C\)。一个 \texttt{ComplexChart} 具有开定义域、开值域、互逆映射和双向 \texttt{ContinuousOn}；图册的兼容性则要求实际过渡映射在重叠集上满足
+\[
+  \operatorname{DifferentiableOn}(\mathbb C,\,\text{transition},\,\text{overlap}).
+\]
+这样，\texttt{ComplexRiemannSurface} 和 \texttt{MarkedComplexRiemannSurface} 已经不再把“全纯性”作为任意的占位谓词。进一步地，代码定义了两个图册之间的坐标表达式 \texttt{ComplexAtlas.chartMap} 及其定义域 \texttt{chartMapDomain}，并以实际的 \texttt{DifferentiableOn} 定义 \texttt{ChartwiseHolomorphicMap}；双向图表级条件封装为 \texttt{AtlasHolomorphicEquiv}。代码还构造了复平面的一张全局图表，证明其过渡映射为恒等函数，并证明恒等映射满足图表级全纯性。这只是一个一致性模型，不是一般黎曼曲面存在定理。
+
+\subsection{实际解析族的拓扑骨架}
+
+\texttt{MathlibFamily.lean} 用依赖和表示总空间：
+\[
+  \mathcal X=\sum_{b:B}X_b,\qquad \pi(b,x)=b.
+\]
+对 \(f:C\to B\)，规范拉回空间通过
+\[
+  (c,x)\longmapsto(c,(f(c),x))\in C\times\mathcal X
+\]
+的 Mathlib 诱导拓扑定义。利用诱导映射连续和积空间第一投影连续，代码证明拉回投影连续；逐纤维 \texttt{Homeomorph}、标记交换方程、分类映射和 fine-moduli 唯一性也都被写成可组合的结构字段。
+
+\clearpage
+\subsection{从拓扑骨架到实际局部平凡化}
+
+新增的 \texttt{MathlibFiberBundle.lean} 将上述族接到 Mathlib 的标准纤维丛 API。一个
+\texttt{FiberBundleWitness} 明确给出模型纤维、各纤维到模型的拓扑同构、总空间拓扑之间的
+\texttt{Homeomorph}，以及 Mathlib 的 \texttt{FiberBundle} 实例。于是每个基点 $b$ 都有一个实际的
+\texttt{Bundle.Trivialization}，并且 Lean 已经证明
+\[
+  b\in e_b.\mathrm{baseSet},
+  \qquad
+  e_b.\mathrm{source}=\pi^{-1}(e_b.\mathrm{baseSet}).
+\]
+这一步把“局部平凡性”从旧的命名字段推进到了 Mathlib 的局部乘积同胚对象。
+
+随后，\texttt{HolomorphicFiberBundleWitness} 在同一个模型曲面上要求每个纤维同构满足
+\texttt{AtlasHolomorphicEquiv}；\texttt{AnalyticFamily} 则把族与这份数据打包为新的显式对象。
+因此“拓扑纤维丛”与“图表级全纯变化”在类型层面已经分开：前者可以先构造，后者必须额外提供
+复图表中的 \texttt{DifferentiableOn} 证明。旧的 \texttt{Family.analyticVariation : Prop} 暂时保留，
+以维持已有拉回和普适性接口的兼容性；它不再被误认为已经包含了上述具体数据。
+
+这里必须保留的边界是：Mathlib 适配层已经把拓扑、局部平凡化和图表级复微分谓词实体化，但尚未证明一般 Teichmüller 族确实能构造出这些 witness。
+
+\subsection{标准拉回与复结构运输}
+
+在上述拓扑骨架之上，引入如下实现：
+\begin{quote}
+\texttt{pullbackFiberBundle}
+\end{quote}
+它显式调用 Mathlib 的标准 \texttt{FiberBundle.pullback}。
+
+为适配 Mathlib 当前拉回 API 对纤维上零元选择的技术要求，
+\texttt{FiberBundleWitness} 记录模型纤维非空性，并从每个纤维的非空性非计算地选择一个零元。
+这只是库接口的实现性条件，不把曲面误认为带有自然的代数零元结构。
+
+对连续映射 $f:C\to B$，\texttt{pullbackLocalTrivialization} 给出实际的拉回局部平凡化；Lean 已证明
+\[
+  \mathrm{baseSet}(f^*e_b)=f^{-1}(\mathrm{baseSet}(e_b)),
+  \qquad
+  c\in\mathrm{baseSet}(f^*e_{f(c)}).
+\]
+因此拉回不仅在纤维类型上成立，局部平凡化的开基底也按逆像函子性传递。
+
+在复结构方面，\texttt{AtlasHolomorphicEquiv.refl} 由图册自身的过渡全纯性构造。
+
+\texttt{HolomorphicFiberwiseEquiv} 要求逐纤维的实际 \texttt{Homeomorph} 同时满足双向图表级
+\texttt{DifferentiableOn}，并可忘却为原来的 \texttt{FiberwiseEquiv}。
+\texttt{HolomorphicFamilyClassification} 和
+\texttt{HolomorphicUniversalMarkedFamily} 则把这一条件接到分类映射和普适族接口。
+一般基空间仍只有连续结构，因此“基空间方向的全纯性”与一般解析族存在性仍是后续目标；
+不过，针对复基 $\mathbb C$ 的局部模型，新增的
+\texttt{JointlyHolomorphicFamily} 已经把联合坐标函数作为数据字段，并要求它满足 Mathlib 的
+\texttt{Differentiable}。
+
+\clearpage
+\subsection{第一个实际填充的解析族}
+
+为了让上述接口不再只是待填的字段，代码进一步构造了
+\texttt{constantComplexPlaneFamily}：任意拓扑基空间 $B$ 上的每个纤维都是带恒等标记的复平面。
+它的总空间不是把依赖和式误当作普通乘积，而是先用
+\texttt{constantComplexPlaneTotalEquiv} 将依赖和式表示与 Mathlib 的
+\texttt{Bundle.TotalSpace} 对齐，再以诱导拓扑构造实际的总空间同胚。
+由此，\texttt{constantComplexPlaneBundleWitness} 使用标准平凡纤维丛。
+
+\texttt{constantComplexPlaneAnalyticFamily} 则逐图表调用
+\texttt{AtlasHolomorphicEquiv.refl}，给出了第一个真正满足全纯 witness 的族。
+
+更进一步，\texttt{constantComplexPlaneClassification} 已经证明：常值复平面族可以由单点基
+$\mathrm{PUnit}$ 分类，分类映射是唯一的常值映射。这是对“分类映射 $\to$ 拉回 $\to$ 全纯纤维等价”
+链条的可执行基准；但它只分类这一受限的常值族子问题，绝不等同于 Teichmüller 空间对所有标记黎曼曲面的普适性。
+
+在这个基准之上，代码又构造了参数依赖的
+\texttt{affinePlaneFamily}：参数 $a\in\mathbb C$ 进入实际的全局图表
+\[
+  z\longmapsto z-a,\qquad z\longmapsto z+a.
+\]
+\texttt{affinePlaneAtlas} 的过渡映射仍为恒等函数，而标准图册到该图册的坐标表达式是平移映射；
+Lean 已证明它们双向满足 \texttt{DifferentiableOn}，并给出
+\texttt{affinePlaneAnalyticFamily} 的完整逐纤维全纯 witness。
+同时，\texttt{affinePlaneChart\_toComplex\_eq\_standard\_iff} 证明当 $a\ne0$ 时图表数据确实不同。
+这一步首次把参数送入复结构本身，但该族仍是“规范平移族”：所有纤维在模空间中代表同一点，
+并不构成非平凡的模空间变形。对它，
+\texttt{affinePlaneJointlyHolomorphic} 进一步给出联合坐标
+\[
+  (a,z)\longmapsto z-a
+\]
+在 $\mathbb C\times\mathbb C$ 上的实际复可微证明；因此“逐纤维全纯”与“联合解析”
+在这个基准例子中已经被 Lean 明确区分并同时验证。该接口仍是选定平凡化中的第一层模型，
+尚未等同于一般总空间的复流形结构或 Teichmüller 空间的非平凡坐标。
+
+\clearpage
+\subsection{格点商：第一个非平凡复结构载体}
+
+为了离开平移规范族，新增的 \texttt{MathlibTorus.lean} 从上半平面参数
+$\tau\in\mathfrak H$ 构造两周期格点
+\[
+  \Lambda_\tau
+  =
+  \operatorname{span}_{\mathbb Z}\{1,\tau\},
+  \qquad
+  T_\tau=\mathbb C/\Lambda_\tau.
+\]
+这里的 $T_\tau$ 已经是 Mathlib 的加法群商，并继承商拓扑；代码证明商映射满足
+\[
+  [z]_\tau=[w]_\tau
+  \quad\Longleftrightarrow\quad
+  z-w\in\Lambda_\tau,
+\]
+以及 $\Lambda_\tau$ 在 $\mathbb R$ 上张成整个复平面。利用 Mathlib 的
+\texttt{ZLattice}、周期函数紧性定理和商映射连续性，还证明了 $T_\tau$ 是紧空间。
+因此这一步不是给图册字段再填一个 \texttt{Prop}，而是已经得到一个有实际参数、周期关系和
+拓扑性质的复环面载体。
+
+同一文件还实现了模群平移生成元的格点关系。令
+$T(\tau)=\tau+1$，则 Lean 证明
+\[
+  \Lambda_{T(\tau)}=\Lambda_\tau.
+\]
+这准确表达了“参数表示”和“模等价”的区别：$\tau$ 与 $\tau+1$ 是不同的上半平面点，
+但由整数周期基变换给出同一个格点商数据。在此前仅有商载体的阶段，局部商图表尚未被组装成
+\texttt{ComplexAtlas}；随后改用覆盖映射和离散格点方法，把这个紧拓扑商提升为真正的黎曼曲面对象。
+
+本轮又把这一步的拓扑核心接入 Mathlib 的覆盖空间理论。利用格点作为离散交换加法子群，
+\texttt{complexTorusMk\_isQuotientCoveringMap} 证明商映射是
+\texttt{IsAddQuotientCoveringMap}；随后得到
+\texttt{complexTorusMk\_isCoveringMap} 和
+\texttt{complexTorusMk\_isLocalHomeomorph}。因此，对每个
+$x\in T_\tau$，\texttt{complexTorus\_has\_local\_complex\_coordinate} 都能提取一个
+以 $\mathbb C$ 为坐标的开局部同胚
+\[
+  e_x:U_x\longrightarrow V_x\subset\mathbb C.
+\]
+这不是把局部图表存在性写成假设，而是由离散格点和商映射的实际拓扑性质导出。
+\texttt{ComplexTorusLocalChart} 现在把局部同胚和截面方程
+\(\,T_\tau(e_x(z))=z\,\) 封装在同一个实际对象中，并可转换为
+\texttt{MathlibFormal.ComplexChart}。
+
+过渡函数的代数/拓扑核心也已经进一步形式化：
+\texttt{transition\_mem\_lattice} 证明两个局部提升的坐标差值
+落在离散格点中，而 \texttt{transition\_difference\_constant} 证明只要重叠域
+预连通且坐标连续，该差值就在整个重叠域上固定为一个格点常数。更强的是，
+\texttt{ComplexTorusLocalChart.transition\_differentiableOn} 不再要求重叠域本身预连通：
+它把差值限制到离散格点的子空间，利用连续函数的局部恒定性，证明过渡函数在每一点的邻域
+都等于某个平移 \(z\mapsto z+\lambda\)，因而在整个重叠域上满足
+\texttt{DifferentiableOn}。
+
+最后，\texttt{complexTorusAtlas} 通过选择每个商点的局部坐标，实际组装出覆盖
+\(T_\tau\) 的 \texttt{ComplexAtlas}，并由这些过渡定理填满全纯兼容字段；
+\texttt{complexTorusRiemannSurface} 则把它装入复曲面对象。这样，格点商已经从紧拓扑载体
+推进为一个真正带复图册的黎曼曲面对象。
+
+参数方向现在也有了一个不带固定标记的具体族。\texttt{UnmarkedFamily} 保存依赖和式纤维、
+每个纤维的拓扑和复图册，以及总空间上的连续投影；\texttt{complexTorusSurfaceFamily}
+将其实例化为
+\[
+  \Sigma_{\tau\in\mathfrak H}\,\mathbb C/\Lambda_\tau\longrightarrow\mathfrak H.
+\]
+固定参考参数取 \(\tau_0=i\)。利用两个实周期基之间的线性等价，
+\texttt{complexTorusMarking\allowbreak LinearEquiv} 证明参考格点被映到 \(\Lambda_\tau\)；
+它下降为商加法等价并由连续性和开映射性得到
+\texttt{complexTorusMarking\allowbreak Homeomorph}。于是
+\texttt{complexTorusMarked\allowbreak Surface} 给出每个纤维相对于
+\(T_{\tau_0}\) 的实际拓扑标记，\texttt{complexTorusMarked\allowbreak Family\allowbreak Skeleton}
+则把这些标记与未标记依赖族组合起来。
+这里的标记是实线性诱导的拓扑同胚，不是复线性同构：它正是“固定拓扑、变化复结构”
+这一 Teichmüller 观点在具体商空间上的形式化。该骨架尚未填入
+\texttt{Family.analyticVariation}，所以还不是完整的标记解析族。
+
+这一标记的参数公式还提供了一个更精确的中间层。对参考纤维中的提升
+\(z\in\mathbb C\)，Lean 展开并证明
+\[
+  L_\tau(z)=\operatorname{Re}(z)+\operatorname{Im}(z)\tau .
+\]
+因此，对每个固定的 \(z\)，右端作为环境参数 \(\tau\in\mathbb C\) 的函数在上半平面上满足
+\texttt{DifferentiableOn}；\texttt{ComplexTorusParameterLiftWitness} 把这一事实封装成
+参数方向的部分解析见证。它没有声称 \(L_\tau\) 对纤维变量也是复全纯的，因为 \(L_\tau\) 是实线性的；
+所以需要把参数与纤维提升同时放回总空间的局部坐标中。
+
+这一分层现在也由实际的 Mathlib 谓词记录。代码中的
+\texttt{complexTorusMarkingLift} 对两个环境变量联合满足
+\(\mathrm{Differentiable}_{\mathbb R}\)，而对每个固定的提升 \(z\)，其参数限制满足
+\(\mathrm{DifferentiableOn}_{\mathbb C}\)。新的
+\texttt{ComplexTorusLocalMarkedAnalyticSeed} 将参数化族图册、总空间局部解析见证和该
+参数方向标记见证组合起来。它明确保留一个重要边界：固定参考标记是实线性的，不能因此
+被误称为对参数和纤维变量联合全纯；联合复解析性只属于未商化的总空间坐标和 deck 变换。
+
+固定参考点的兼容性也已变成定理。Lean 证明在
+\texttt{complexTorusBaseParameter}=i 处，线性标记等于
+\texttt{LinearEquiv.refl}，下降到商空间的标记等于
+\texttt{Homeomorph.refl}；对任意局部种子，其参数提升在该参考点也退化为恒等提升。
+因此这个局部标记种子不是把几组公式并列放置，而是在 Teichmüller 的选定基点上具有明确
+归一化的兼容数据。
+
+本轮又把商关系本身提升为一个真正的代数作用。定义
+\texttt{complexTorusDeckAddAction} 为 \(\mathbb Z^2\) 在提升参数空间
+\(\mathfrak H\times\mathbb C\) 上的加法作用，其作用正是
+\[
+  (m,n)\mathbin{+_v}(\tau,z)=(\tau,z+m+n\tau).
+\]
+Lean 证明总空间商映射在该作用下不变；更强的定理
+\texttt{complexTorusDeckAddAction\allowbreak\_orbit\allowbreak\_eq\allowbreak\_fiber} 证明
+\[
+  \operatorname{TotalMk}(p)=\operatorname{TotalMk}(q)
+  \quad\Longleftrightarrow\quad
+  \exists (m,n)\in\mathbb Z^2,\ (m,n)\mathbin{+_v}q=p.
+\]
+因此这里的依赖和商空间已经在轨道层面得到精确刻画，而不再只是若干平移公式的集合。
+这一步仍然只解决商的代数/拓扑识别；它没有把轨道商自动升级为全局复流形或普适模空间。
+
+在标记的唯一性方向，\texttt{complexTorusParameter\allowbreak\_ext\allowbreak\_of\allowbreak\_marking\allowbreak\_I} 证明：若两个
+参数把参考提升 \(I\) 送到同一个标记坐标，则两个上半平面参数相等；等价地，
+\texttt{complexTorusMarking\allowbreak\_coordinate\allowbreak\_injective} 给出该标记坐标的单射性。
+这是精细模空间唯一性的一个提升层基元，但还不是“任意标记解析族都由一个全纯分类映射
+唯一拉回”的完整普适性定理。
+
+这一局部步骤现在已经由具体格点估计推进。取
+\[
+  U_0=\{\tau\in\mathbb C:\lvert\operatorname{Im}\tau-1\rvert<1/4\},
+  \qquad D_0=B(0,1/4).
+\]
+Lean 证明：若 \(\tau\in U_0\)，则每个非零
+\(m+n\tau\in\Lambda_\tau\) 的范数至少为 \(3/4\)；故商映射在 \(D_0\) 上单射。
+总空间拓扑不再取会抹去提升方向的投影诱导拓扑，而是取
+\((\tau,z)\mapsto(\tau,[z]_\tau)\) 的 coinduced 拓扑。于是
+\texttt{complexTorusLocalImage\_isOpen} 证明局部像是总空间中的开集，
+\texttt{complexTorusLocalDomainHomeomorph} 给出局部域到该开像的实际同胚；
+\texttt{complexTorusLocalParameterLiftToTotalHomeomorph} 则把域写成
+\(U_0\times D_0\) 的子空间版本。与此同时，未商化的升起坐标
+\((\tau,z)\mapsto z\) 在 \(\mathbb C^2\) 上被 Lean 证明为联合
+\texttt{Differentiable}，并可限制到 \(U_0\times D_0\)。
+格点变换
+\enlargethispage{3\baselineskip}
+\[
+  (\tau,z)\longmapsto(\tau,z+m+n\tau),\qquad m,n\in\mathbb Z,
+\]
+也被 Lean 证明为联合全纯，并且保持总空间中的商点不变。
+这些数据被封装为\linebreak
+\texttt{ComplexTorusLocalAnalyticFamily\allowbreak Witness}。
+同时，Lean 还证明每个紧致复环面都不可能与整个 \(\mathbb C\) 同胚；
+因此现有全局 \texttt{JointlyHolomorphicFamily} 接口不能被一个单一坐标
+直接实例化，必须改用局部图表及其 deck transition。这已经是变化商空间的
+真实局部解析族种子，但还不是整个总空间的复流形结构，也没有把一般标记族
+填入旧的 \texttt{analyticVariation} 字段。
+
+这一步现在进一步从“一个零中心图表”推进到“所有升起中心的图表族”。对任意
+\(c\in\mathbb C\)，Lean 以同一个 \(3/4\) 格点下界证明商映射在
+\(B(c,1/4)\) 上单射；纤维平移
+\( [z]_{\tau}\mapsto[z+c]_{\tau} \) 被组织为总空间的同胚，并把零中心局部像
+搬运为开集 \texttt{complexTorusLocalImageAt c}。因此
+\texttt{complexTorusLocalParameterLiftToTotalHomeomorphAt c} 给出以 \(c\)
+为中心的实际局部图表。最后，定理
+\texttt{complexTorusLocalTotalSlice\_eq\_iUnion\_localImageAt} 证明这些中心图表
+覆盖参数邻域上的整个总空间切片：对任意商点先选一个升起 \(z\)，再把它放进以
+\(z\) 为中心的球中。这把单个 chart seed 提升为具有明确覆盖性的图表族；随后
+二维图表层已经完成局部复结构的构造和全纯过渡的商下降。剩余的是把它扩展到全局
+参数空间，并证明一般解析族的分类定理。
+
+过渡层也已具体化。中心域写成显式的
+\texttt{complexTorusLocalDomainAt c}，其总空间像被 Lean 证明正好等于
+\texttt{complexTorusTotalMk} 对该域的直接像；因此中心图表的开性既可由纤维平移
+得到，也可直接由商映射的开像定理得到。未商化的格点变换被封装为
+\texttt{ComplexTorusDeckPseudogroupWitness}：逆、复合、联合可微性以及商下降
+都作为具体字段保留下来。对固定 \(\tau\) 的任意预连通图表重叠，Lean 进一步证明
+过渡函数严格具有 \(z\mapsto z+d\) 的形式，其中 \(d\in\Lambda_\tau\)。
+因此局部仿射过渡计算已经完成；二维局部总空间复结构及其过渡组装也已完成，
+尚待完成的是全局扩展和与一般固定标记解析族的分类相容性。
+
+二维图表接口也已经显式加入 \texttt{MathlibComplex.lean}。新的
+\texttt{ComplexSurfaceChart} 以 \(\mathbb C^2=\mathbb C\times\mathbb C\) 的开集为
+模型，并把总空间拓扑作为显式参数保留下来；这样不会把商映射生成的
+\texttt{complexTorusTotalTopology} 与 Mathlib 对依赖和的默认 sigma 拓扑混淆。对每个
+\(c\)，\texttt{complexTorusLocalAmbientDomainAt c} 是开集
+\(U_0\times B(c,1/4)\subset\mathbb C^2\)，而
+\texttt{complexTorusLocalTotalChartHomeomorphAt c} 是局部商像到该开集的真实同胚。
+\texttt{complexTorusTotalSurfaceChartFamily} 把它们封装成图表族，并明确把覆盖集记为
+\texttt{complexTorusLocalTotalSlice}；因此它只声称覆盖已构造的参数邻域切片，而不声称
+覆盖整个变化总空间。二维图表的全纯过渡和局部复曲面结构在后续定理中已经组装；
+剩余任务是扩展覆盖并处理全局族。
+
+过渡层现在也推进到一个更准确的片状形式。新的
+\texttt{ComplexSurfaceTransitionSheet} 记录开源集、开目标集、映射到目标集的性质
+以及 \(\mathrm{DifferentiableOn}\) 证明。对中心 \(c_1,c_2\) 和整数对 \((m,n)\)，
+\texttt{complexTorusAmbientDeckTransitionSheet} 用仿射 deck 变换
+\[
+  (\tau,z)\longmapsto(\tau,z+m+n\tau)
+\]
+实例化这一接口；其源集是两个中心提升域在该变换下的开交，目标集是相应的开像。
+定理 \texttt{complexTorusAmbientDeckTransitionSheet\_descends} 进一步验证每个片上的
+提升点确实具有相同的商像。
+在提升的商空间层面，定理
+\texttt{complexTorusLiftedChartOverlap\_eq\_iUnion\_}\allowbreak\texttt{deckSheets} 证明图表重叠正是所有
+格点平移片的并。因而联合全纯过渡已经逐片可用，后续商层将这些片下降为规范的图表
+过渡函数。
+
+商层的第一步下降现在也已经形式化。新的
+\texttt{ComplexSurfaceChartTransitionSheet} 在过渡片上绑定两张实际的二维图表，要求
+片的源、目标分别落在两张图表的坐标范围内，并要求两张图表的逆映射代表同一个总空间点。
+定理 \texttt{complexTorusTotalSurfaceChart\_symm\_apply} 给出总空间图表逆映射的显式商点公式。
+对每个 deck 片，两个具体的片级定理分别证明
+\[
+\texttt{source\_mem\_targetImage},\qquad
+\texttt{chart\_apply}
+\]
+前者说明商点确实落在目标图表中，后者进一步证明目标坐标正是
+\((\tau,z)\mapsto(\tau,z+m+n\tau)\)。因此
+\texttt{complexTorusQuotientTransitionSheet} 已成为上述图表绑定接口的具体实例。
+这是真正逐片的商下降；随后由片覆盖得到规范过渡函数在整个图表重叠上的
+\(\mathrm{DifferentiableOn}\) 性质。
+
+图表重叠的组装接口现在也已明确。\texttt{ComplexSurfaceChart.overlap} 定义两张二维图表的
+实际源坐标重叠，\texttt{ComplexSurfaceChartTransitionCover} 则记录一族图表兼容的过渡片，
+要求每个片落在该重叠内并且片的并覆盖整个重叠。相应的 deck-sheet 覆盖等式证明两个总空间
+图表的实际重叠正是所有 ambient deck 片源集的并。因此
+\texttt{complexTorusQuotientTransitionCover} 给出以 \(\mathbb Z^2\) 为指标的具体覆盖；
+从“源是目标提升的平移”到“把源送到目标”的符号差异由
+\((m,n)\mapsto(-m,-n)\) 吸收。由该覆盖构造规范过渡函数并证明其
+\(\mathrm{DifferentiableOn}\) 性质已经完成；当前剩余任务是把局部复图册扩展为全局族。
+
+这一步现在已经实现。\texttt{ComplexSurfaceChart.transitionMap} 定义两张实际二维图表在重叠
+上的规范过渡函数；为使其成为全定义函数，重叠外取原点，但所有解析声明只在重叠上进行。
+一般的片上相等定理证明任意图表兼容过渡片都与这个规范函数相等。对环面族，逐片识别定理
+把规范过渡函数识别为仿射 deck 变换，再由开集 \(\mathbb Z^2\)-覆盖的并集定理得到全局
+\(\mathrm{DifferentiableOn}\) 性质。最后，
+\texttt{complexTorusLocalComplexSurfaceAtlas} 将这些实际图表及其全纯过渡封装为
+\textbf{局部}复图册；“局部”是有意保留的，因为参数邻域尚未扩展为整个普适族。
+
+参数化族接口也已前进一步。新的
+\texttt{ComplexSurfaceFamilyAtlas} 在复图册之上记录到参数空间的连续投影，并要求每张
+图表的第一坐标就是该投影经过指定坐标后的值。对可变环面，基底现在明确取
+\(\mathbb H\)（代码中的 \texttt{ComplexTorusParameter}），而不是把参数误当作全复平面。
+定理 \texttt{complexTorusTotalSurfaceChart\_chart\_fst} 证明了实际总空间图表满足这一
+兼容性；\texttt{complexTorusLocalComplexSurfaceFamilyAtlas} 将它与局部复图册合并，
+\texttt{complexTorusLocalUnmarkedFamilyAtlas} 再把该图册绑定到具体的依赖和未标记环面族。
+这已经是“复图册 \(\to\) 参数化族”的可检查对象，但仍只覆盖
+\texttt{complexTorusLocalTotalSlice}：全局全纯纤维丛、参数方向的解析族以及普适标记族尚未
+在此处被宣称或形式化。新增的
+\texttt{ComplexTorusLocalMarkedAnalyticSeed} 进一步把上述图册与联合复解析的提升/格点
+见证、以及固定标记的参数方向解析见证放进同一个局部数据包；它仍然没有把实线性标记提升
+升级为联合全纯的商空间平凡化。
+
+族与复结构的兼容性现在也被提升为独立定理，而不只是图册结构中的重复字段。
+通用定理
+\texttt{ComplexSurfaceFamilyAtlas.\allowbreak transition\_first\_coordinate\_eq}
+证明：在任意两张族图表的坐标重叠上，规范过渡映射的第一复坐标保持不变。
+对可变环面，定理
+\texttt{complexTorusTotalSurfaceChart.\allowbreak transition\_first\_coordinate\_eq}
+把它具体化为 deck 过渡
+\[
+  (\tau,z)\longmapsto(\tau,z+m+n\tau)
+\]
+的参数坐标恒等式。因此这里的二维复图册确实是“在参数空间之上的图册”，而不是
+一个与族投影无关的总空间复图册。
+
+拉回接口现在也从旧的 \texttt{Family} 层下沉到实际的未标记依赖和族。
+\texttt{unmarkedPullbackMap} 把
+\[
+  \Sigma_{c\in C}X_{f(c)}
+  \longrightarrow C\times\Sigma_{b\in B}X_b,
+  \qquad
+  (c,x)\longmapsto(c,(f(c),x))
+\]
+作为定义域映射，\texttt{unmarkedPullback\allowbreak Topology} 取其诱导拓扑；
+Lean 证明
+\texttt{unmarkedPullback\allowbreak\_projection\allowbreak\_continuous}，从而得到实际的
+\texttt{UnmarkedFamily.\allowbreak canonicalPullback}。固定参考标记由
+\texttt{MarkedUnmarkedFamily.\allowbreak canonicalPullback} 沿纤维逐点运输，完全不需要把
+\texttt{analyticVariation} 再次设为无内容的命题。
+
+对具体环面，\texttt{complexTorusMarkedFamily\allowbreak Pullback} 给出任意连续参数映射
+\(f:C\to\mathfrak H\) 的依赖和拉回族。Lean 证明其在 \(c\) 处的纤维为
+\[
+  \mathbb C/\Lambda_{f(c)}.
+\]
+且标记恰为
+\texttt{complexTorusMarking\allowbreak Homeomorph}\((f(c))\)。这已经形成“测试基底
+\(\to\) 参数映射 \(\to\) 拉回标记族”的可检查链条，但仍然只是一种具体的拓扑/标记
+拉回构造；任意解析族的全纯分类映射和普适性唯一性仍待证明。
+
+为把“解析测试基底”写成实际数据，代码新增
+\texttt{ComplexTorusHolomorphicParameterMap}：它记录一个开子集
+\(U\subset\mathbb C\)、映射 \(f:\mathbb C\to\mathbb C\)、像落在
+\(\mathfrak H\) 中的证明，以及 \(f\) 在 \(U\) 上的
+连续性和 \(\mathrm{DifferentiableOn}\) 证明。Lean 进一步证明，对任意固定提升 \(z\)，复合
+\[
+  c\longmapsto L_{f(c)}(z)
+\]
+在 \(U\) 上复可微；同时环境变换
+\[
+  (c,z)\longmapsto(f(c),z)
+\]
+在 \(U\times B(0,r)\) 上联合复可微。上半平面上的恒等映射给出这个接口的实际
+实例。这是“解析测试基底 \(\to\) 参数映射 \(\to\) 局部提升数据”的第一条可检查链，
+但仍不等于任意解析族的商空间图表或全纯分类映射定理。
+
+进一步地，\texttt{parameterPoint} 把定义域的子类型
+\(\{c\mid c\in U\}\) 连续地送入实际的上半平面参数空间；
+\texttt{complexTorusHolomorphicParameterPullback} 因而给出该解析测试基底上的
+具体标记环面拉回族，并由 Lean 证明其纤维和标记分别为
+\[
+  \mathbb C/\Lambda_{f(c)},\qquad
+  \texttt{complexTorusMarkingHomeomorph}(f(c)).
+\]
+若参数映射的像还落在统一邻域 \(U_0\)，则
+\texttt{ComplexTorusLocalHolomorphicParameterMap} 记录这一局部条件；相应的
+\texttt{deckTransition} 明确为
+\[
+  (c,z)\longmapsto(c,z+m+n f(c)),
+\]
+并且 Lean 证明它在任意提升圆盘上连续且满足
+\(\mathrm{DifferentiableOn}_{\mathbb C}\)。因此“解析测试基底
+\(\to\) 拉回族 \(\to\) 联合全纯过渡”已经成为可检查链条；剩余仍是对任意解析族
+构造商空间图表、证明全局分类映射及其唯一性。
+
+片上下降步骤现在也被提升为 Mathlib 层的通用定理。其 Lean 结构是一个带开片覆盖和兼容性字段的 transition-cover 数据，核心结论记为
+\[
+  \texttt{transition\_differentiableOn}.
+\]
+其基础是精确的重叠分解
+\texttt{iUnion\_source\_eq\_overlap}，以及每个兼容片都与规范过渡函数相等的定理。
+可变环面的具体图册现在直接调用这一通用结果，而不再重复手工拼接证明。它形式化了这里
+真正使用的商原理：联合全纯的提升片在商关系下相容，并以开片覆盖重叠，于是下降后的规范
+过渡在整个重叠上保持 \(\mathrm{DifferentiableOn}\)。
+
+对局部解析测试映射，代码还定义了从拉回总空间到原商总空间的
+\texttt{toTotal} 映射。因而每个局部商图表的逆像都被 Lean 证明为拉回拓扑中的开集；定理
+\texttt{LocalImageAt\_union} 进一步证明这些局部
+像覆盖整个拉回总空间。这已经完成了把局部图表域运输到测试基底的拓扑步骤，但还没有给出
+一般解析族的全局分类映射。
+本轮又完成了一步真实的图表构造：提升段及其显式逆映射被组装为
+LiftHomeomorphAt，再与开集
+\(F.\mathrm{domain}\times B(c,1/4)\) 的坐标同胚复合，得到实际的
+ComplexSurfaceChart；以测试基底点 \(c\) 为指标的图表族也已证明覆盖整个拉回总空间。
+本轮进一步构造了参数化 deck 同胚和开过渡片，证明它们与拉回图表逆映射相容，并调用片上下降
+定理得到完整的 ComplexSurfaceAtlas。尚未完成的是一般标记解析族的普适分类映射。
+
+分类接口现在也已经与这个具体例子接上，而不再只是独立的抽象结构。
+代码的 \texttt{toFamily} 将带标记的依赖和族转换为统一的 Mathlib 族对象，并给出上半平面上的
+实际标记环面族。对每个局部全纯参数映射，\texttt{HolomorphicFamilyClassification} 记录参数映射，
+并以逐纤维恒等 \texttt{Homeomorph} 给出它与规范拉回的全纯实现。由于上半平面是复流形而非复
+向量空间，更强的参数解析性被单独封装为局部分类见证：其环境参数映射在测试域上满足
+\(\mathrm{DifferentiableOn}_{\mathbb C}\)，并且限制为上半平面的子类型值分类映射。一般的
+\texttt{DifferentiableFamilyClassification} 也已有平移复平面的完整实例。这里得到的是具体的
+分类见证和参数解析证书，尚不是“任意带标记解析族都存在全纯分类映射”的总定理。
+
+本轮首次把这个具体测试族的精细性真正证明出来。给定同一个拉回标记环面族的任意
+\texttt{HolomorphicFamilyClassification} \(C\)，代码中的参数分类等式定理
+\texttt{map\_eq\_parameterPoint}
+逐点证明
+\[
+ C.\mathrm{map}(c)=F.\mathrm{parameterPoint}(c).
+\]
+证明链条不是定义性相等，而是：分类见证的逐纤维全纯同构与标记交换律给出一个保持标记的
+商环面双全纯映射；商空间归一化把它化为规范标记过渡；复线性判据和
+\(\tau\mapsto L_\tau(i)\) 的参数刚性再推出参数相等。于是
+\texttt{classification\_map\_unique} 证明任意两个分类
+见证的基底映射相等。这是 Teichmüller “标记消除自同构歧义”在具体环面测试族上的第一条
+真正精细模空间定理；它还没有被夸大为任意高亏格解析族的普适存在性。
+
+精细模空间层现在也被单独写成类型接口：
+\texttt{FineHolomorphicUniversalMarkedFamily} 在全纯分类存在性之外，要求分类映射的唯一性。
+具体局部环面定理已经提供了这个唯一性字段在测试族上的实际实例；但由于一般解析族的存在性仍
+未证明，代码没有把它错误地升级为全局精细普适族。已经证明的提升层分离性则封装为
+\texttt{ComplexTorusParameterRigidityWitness}：坐标
+\(\tau\mapsto L_\tau(i)\) 在上半平面上单射。因而当前代码同时给出了精细分类所需的明确分离输入、
+以及尚未完成的普适性/唯一性接口；前者本身没有被夸大为后者。
+
+下一步刚性中间层也已形式化。Lean 中的复线性提升类型要求它是普适覆盖
+\(\mathbb C\) 上的复线性映射，并精确把 (1) 送到 (1)、把 \(\tau\) 送到 \(\sigma\)。
+Lean 证明这种提升只能是恒等映射，因此 \(\tau=\sigma\)。代码还显式定义了两个参数之间的
+规范实线性标记变换；若它满足明确的复线性条件，同样可以推出参数相等。
+这把尚未完成的解析桥梁精确定位为：从任意保持标记的商空间双全纯映射构造上述规范复线性提升。
+商空间上的标记等式本身只在 deck 平移模意义下成立，因此没有被误用来替代这一步。
+对角情形也已验证：当 \(\tau=\sigma\) 时规范标记变换就是恒等映射，因而代码得到该变换
+满足复线性条件当且仅当两个参数相等的判别式。
+
+商空间层的归一化现在也已成为实际对象。\texttt{ComplexTorusMarkedBiholomorphism} 同时记录
+两个商环面之间的同胚、图表级双全纯性以及保持标记的等式。Lean 证明任何这样的映射都唯一等于
+规范过渡 \texttt{complexTorusMarkedTransitionHomeomorph}；并证明存在保持标记的双全纯映射，
+当且仅当这个规范过渡具有图表级全纯性。现在反向解析刚性也已经完成：规范过渡的图表级全纯性
+直接强制前述规范实线性标记变换复线性，因而不再需要把“全局环面刚性”作为未展开的黑箱假设。
+
+正向的局部解析方向现在已经在实际商图册上完成。对局部图表 $c_1,c_2$，
+Lean 证明目标图表坐标与显式实线性提升之差取值于离散格点；连续性于是使这个差在局部常值。
+若提升满足复线性条件，坐标表达满足 \texttt{DifferentiableOn}，并进一步由正向、反向图表证书
+组装出规范过渡的图表级双全纯证书。反向方向也已经闭合：从任意全局图表级全纯的规范过渡出发，
+在一个开局部图表重叠上先恢复提升的复可微性，再用 Cauchy--Riemann 判据和实线性映射定理抽取
+提升的复线性。于是代码得到规范过渡全纯性、规范复线性条件与保持标记双全纯映射存在性的充要联系。
+
+从作用的角度看，之前的 \(\mathbb Z^2\) deck pseudogroup 现在已经由上述
+\texttt{AddAction} 统一承载。这样“提升空间 \(\to\) 轨道商 \(\to\) 局部复图册”的链条中，
+轨道等价关系和图表级全纯性被分开记录：前者由
+\texttt{complexTorusDeckAddAction\_orbit\_eq\_fiber} 完成，后者仍由逐片的
+\(\mathrm{DifferentiableOn}\) 过渡定理完成。这个分层为下一步把商的普适性质接到解析族接口
+提供了更准确的入口。
+
+本轮把 Beltrami 轴正式接回这条链条。代码中的测度被显式作为参数保留，因而不会把任意坐标域
+误当成带有预选体积形式的全局平面；系数的可测性与本质上界也分别成为可检查的数据字段。对实微分
+\(D:\mathbb C\to\mathbb C\)，定义
+\[
+ D^{1,0}=\frac{D(1)-iD(i)}2,
+ \qquad
+ D^{0,1}=\frac{D(1)+iD(i)}2.
+\]
+Lean 证明 $D^{0,1}=0$ 当且仅当 $D(i)=iD(1)$，并据此证明零 Beltrami 系数时，
+逐点方程在开域上恰好等价于复可微性。于是当前可验证的增量是
+\[
+\text{可测系数与 }\|\mu\|_\infty<1
+\to
+\text{局部 Beltrami 方程}
+\to
+\text{零系数的全纯退化}.
+\]
+这还没有越过最困难的存在性门槛：尚未形式化可测 Riemann 映射定理，也没有声称任意系数都有唯一
+解。当前已经把绝对连续测度运输和带参数的逐纤维数据结构写入 Lean，并以
+\texttt{BeltramiCompatibleFamily} 将坐标域开嵌入到实际族总空间且保持投影。
+本轮又证明了系数拉回的恒等律与复合律，并加入了对每个固定坐标点的参数连续性字段；因此
+“坐标变换函子性”和“参数变化”已有可复用的形式化入口。新加入的
+\texttt{BeltramiCoefficientTransportCocycle} 证明了标量系数的三重拉回律，但它有意没有冒充
+含导数项的完整 Beltrami 微分变换公式。下一步是把这些局部数据与图表间的完整 differential
+cocycle、现有 \texttt{ComplexSurfaceFamily} 的复图册过渡字段连接起来。只有在这一步完成后，
+才适合讨论 Beltrami 解如何产生一条真正的 Teichmüller 变形族。
+
+现在这条“下一步”已经推进到可验证的代数中间层。对任意实线性微分 \(D\)，新文件
+\texttt{MathlibBeltramiDifferential}\allowbreak\texttt{.lean} 证明了
+\[
+D(z)=D^{1,0}z+D^{0,1}\overline z,
+\]
+并把复合微分的两部分写成矩阵式乘法；因此当复线性部分不为零时，
+\(\mu_D=D^{0,1}/D^{1,0}\) 的变换分式已经可以在 Lean 中直接计算。这严格补上了此前
+“标量拉回”与“真正导数变换律”之间缺失的代数桥梁，但仍不等于图表上的可测微分场，
+也不等于可测 Riemann 映射定理。后续需要把 \(D=fderiv_{\mathbb R}f\) 的几乎处处性质、
+坐标重参数化的链式法则及测度兼容性接入这一公式。
+
+本轮又把严格小于一条件转化为实际的椭圆性估计。若
+\[
+ D(z)=az+b\overline z,\qquad b=\mu a,
+\]
+则 Lean 证明
+\[
+ (1-\lVert\mu\rVert)\lVert a\rVert\lVert z\rVert
+ \leq \lVert D(z)\rVert
+ \leq (1+\lVert\mu\rVert)\lVert a\rVert\lVert z\rVert.
+\]
+这里的上下界只使用复数范数的三角不等式、共轭保持范数以及
+\(\lVert xy\rVert=\lVert x\rVert\lVert y\rVert\)，因此是可独立复用的实线性代数定理。
+当 \(\lVert\mu\rVert<1\) 且 \(a\ne0\) 时，下界系数严格为正；这正是把 Beltrami 方程看作一致
+椭圆系统、进而进入近似解与极限紧性的第一条可检查桥梁。它仍不是一般解存在性定理，但已经把
+\(\lVert\mu\rVert_\infty<1\) 从一个界条件推进为微分层面的定量控制。
+代码还由此证明 \texttt{realLinearMap\_beltrami\_injective}：这样的实线性微分必为单射。
+因此“严格小于一”不仅控制失真大小，也排除了局部微分塌缩；这是后续把近似解提升为局部坐标变换
+时所需的一个独立可复用结论。
+
+这一连接的点态版本已经完成：\texttt{fderivBeltramiCoefficient} 把
+\(\mathrm{fderiv}_{\mathbb R}f(z)\) 直接送入上述商，而
+\texttt{fderivBeltramiCoefficient\_comp\_eq\_transform} 在两个函数于相应点实可微且
+\(D^{1,0}\ne0\) 时，调用 Mathlib 的 \texttt{fderiv\_comp} 得到复合公式。进一步的
+\texttt{BeltramiDifferentialTransportCocycle} 同时记录坐标过渡、系数和点态实微分；
+\texttt{RealDifferentiableBeltramiDifferentialTransportCocycle} 要求这些微分就是过渡函数的
+\texttt{fderiv}，并由链式法则证明三重微分复合。于是当前层次已从“抽象系数传输”推进到
+“实际可微过渡的点态导数传输”。最新的 \texttt{MathlibBeltramiAEEq} 又定义了测度意义下的
+\texttt{AEBeltramiDifferentialTransportCocycle}：其字段直接要求微分场强可测，并以几乎处处等式
+记录系数变换、单位元和三重链式律。一个额外的真实可微 a.e. 扩展把微分与
+\texttt{fderiv} 的相等也记录为 a.e. 数据，并推出相应的 \texttt{fderiv} 系数公式。因此，
+“点态导数传输”到“图表级 a.e. 微分场”的接口已经写出并编译；但一般过渡图表的可测微分场构造、
+可积性、弱正则性和可测 Riemann 映射定理仍未被这组字段自动证明。
+现在的 \texttt{MathlibBeltramiChart} 又把这组字段放到实际复图表上：\texttt{chartTransition} 和
+\texttt{chartOverlap} 直接由 \texttt{ComplexChart} 定义，\texttt{overlapMeasure} 使用重叠集上的
+限制测度，\texttt{chartTransition\_comp\_on\_tripleOverlap} 则由图表逆律证明三重重叠上的过渡复合。
+新增的 \texttt{tripleOverlapMeasure} 与绝对连续运输字段把源测度推到目标重叠；借助
+\texttt{ae\_of\_ae\_map} 和开集上的实可微性，Lean 现在从分别的 a.e. 导数等式推导三重复合律。
+\texttt{C1ComplexAtlas} 要求过渡的实导数在重叠上连续，而
+\texttt{ComplexAtlas.toC1ComplexAtlas} 已由 Mathlib 的复解析正则性与限制标量定理自动给出这一条件；
+\texttt{C1LocalBeltramiInput.toLocal} 则把 \texttt{fderiv} 的重叠指示函数作为实际微分场，并由连续集上的
+Mathlib 可测性定理证明强 a.e. 可测。常值复平面输入给出了这一自动生成构造的回归实例。因此，当前
+桥接层已经不再只是抽象索引，而是实际图表的局部测度与可构造微分数据；
+\texttt{FiniteMeasureC1LocalBeltramiInput} 进一步证明了有限测度下系数的全局及重叠可积性，
+而 \texttt{DominatedC1LocalBeltramiInput} 处理一般测度下的可积主控；仍待补的是可测解存在性以及随后把解重新组装为全局复图册。
+
+本轮把“可积系数到归一化解”这一分析边界也显式化，但不把它误写成已经证明的可测 Riemann 映射定理。
+\texttt{BeltramiEquationAE} 记录相对于显式测度的几乎处处方程；
+\texttt{NormalizedBeltramiHomeomorph} 则是一个有意偏强的解见证：它包含全局
+\(\mathbb C\) 的 \texttt{Homeomorph}、延拓到一点紧化 \(\widehat{\mathbb C}\) 的同胚并固定无穷远点，
+同时固定 \(0,1\) 并满足 a.e. Beltrami 方程。
+\texttt{PointwiseNormalizedBeltramiHomeomorph} 将方程提升为逐点版本，并有已证明的
+\texttt{toChartDeformation} 映射，把它送回既有的开域图表变形结构；
+\texttt{NormalizedBeltramiMappingWitness} 再把“给出一个解”和“所有归一化解具有相同映射”分成两个字段。
+因此这里形式化的是后续接入定理所需的目标接口与零系数恒等回归，而不是一般系数的存在/唯一性证明。
+
+在族级，\texttt{PointwiseNormalizedBeltramiFamilyWitness} 现在把这组数据沿参数空间组织起来：
+每个参数有一个系数和逐点归一化解，系数在固定坐标处连续，解映射
+\((b,z)\mapsto f_b(z)\) 联合连续。Lean 证明其
+\texttt{toBeltramiFamilyData} 产生全局域 \(\mathrm{Set.univ}\) 上的实际族数据，并进一步构造
+\texttt{ParameterContinuousBeltramiFamilyData}；恒等解族提供回归实例。这里的逐点条件是为了接入
+已有的族接口而有意加强的分析输入，尚未由可积性或 \(\|\mu\|_\infty<1\) 自动推出。
+
+为避免把可测解的几乎处处方程升级成逐点方程，代码又单独加入 a.e. 族数据结构
+\texttt{AEBeltramiFamilyData}。其归一化解族见证为
+\texttt{AENormalizedBeltramiFamilyWitness}，直接使用每个全局归一化解自带的
+\texttt{equation\_ae}，并构造相同联合连续性数据的 a.e. 族；
+零系数恒等族同时给出回归实例。因此当前已经同时存在“逐点方程的族接口”和“与可测 Riemann
+映射定理正则性匹配的 a.e. 族接口”，二者之间的正则性差异在类型层面不可忽略。
+代码还证明了通用转换
+\texttt{PointwiseNormalizedBeltramiFamilyWitness.toAENormalizedBeltramiFamilyWitness}：
+它只忘掉逐点方程这一较强条件，保留系数的参数连续性、归一化全局映射以及联合连续性。
+因此，后面的非零仿射参数族可以直接下降到可测 Riemann 映射定理所需的 a.e. 正则性层。
+
+为了把“存在唯一性”拆成可以逐条检查的分析门槛，本轮又加入
+\texttt{MathlibBeltrami}\allowbreak\texttt{Contraction}\allowbreak\texttt{.lean}。其中
+\texttt{ContractiveBeltrami}\allowbreak\texttt{SolutionScheme} 要求一个完备扩张度量状态空间
+\(E\)、一个压缩算子 \(K:E\to E\)、压缩因子以及有限距离的初始点；同时显式记录
+\[
+\{\text{固定点}\}\rightleftarrows
+\{\text{归一化 Beltrami 解}\}
+\]
+的编码与解码，并要求二者相容。Mathlib 的 Banach 固定点定理随后在 Lean 中给出固定点、
+\[
+K^n(x_0)\longrightarrow x_\ast,
+\qquad
+\operatorname{edist}(K^n(x_0),x_\ast)
+\leq
+\frac{\operatorname{edist}(x_0,Kx_0)\,c^n}{1-c},
+\]
+以及由编码/解码得到的归一化映射唯一性和存在性。这里的逻辑边界是刻意保留的：
+代码没有声称已经证明可测 Riemann 映射定理；未来仍需构造具体的 Ahlfors--Beurling
+型算子（或等价的解析求解算子），证明它作用在合适的完备函数空间上且满足压缩性，并验证
+固定点与归一化同胚解之间的编码/解码性质。因而这一文件把“分析构造”与“固定点后果”
+分离开来，是从当前解见证接口走向真正存在性定理的下一道可审计门槛。
+
+在此基础上，\texttt{MathlibBeltramiNeumann}\allowbreak\texttt{.lean} 把“具体算子”向前推进了一层。
+结构 \texttt{NeumannBeltramiProblem} 取一个完备复范数空间 \(E\)、强迫项 \(g\) 和有界复线性核
+\(K:E\to E\)，并要求 \(\lVert K\rVert<1\)。Lean 证明仿射方程
+\[
+u=g+Ku
+\]
+具有唯一解；从零开始的迭代 \(u_{n+1}=g+Ku_n\) 收敛到该解，并满足
+\[
+\lVert u_n-u_\ast\rVert
+\leq
+\frac{\lVert g\rVert\,\lVert K\rVert^n}{1-\lVert K\rVert},
+\qquad
+\lVert u_\ast\rVert\leq
+\frac{\lVert g\rVert}{1-\lVert K\rVert}.
+\]
+\texttt{ScaledNeumannBeltramiProblem} 又把经典的系数乘奇异算子形状
+\(K=\mu B\) 编码为结构，并由
+\(\lVert\mu\rVert\lVert B\rVert<1\) 推出压缩性；当 \(B=\mathrm{id}_{\mathbb C}\) 时，
+代码计算出标量回归解 \(u=(1-\mu)^{-1}g\)。这一层已经是有实际内容的 Neumann 定理，
+但不能把抽象的 \(B\) 误称为 Beurling 变换，也不能把固定点自动解释成 Beltrami 同胚。
+后续仍需构造合适的函数空间和奇异积分算子，证明其 \(L^p\) 或相关范数估计，并把固定点
+提升为满足 a.e. 方程且归一化的全局同胚。
+
+本轮再把“系数乘法”从记号提升为实际的 \(L^p\) 算子，见
+\texttt{MathlibBeltramiMultiplier}\allowbreak\texttt{.lean}。结构
+\texttt{BoundedScalarCoefficient} 保存强可测复系数、一个 \(\mathbb R_{\ge 0}\) 本质上界以及
+相应的 a.e. 不等式；对 \(1\le p\) 的 \(L^p(\mathbb C,m)\)，代码构造
+\[
+ M_\mu f=\mu f,
+ \qquad
+ M_\mu:L^p\longrightarrow L^p,
+ \qquad
+ \lVert M_\mu f\rVert\leq C\lVert f\rVert,
+ \qquad
+ \lVert M_\mu\rVert\leq C.
+\]
+这里的乘法不是抽象的 `Prop` 见证：它通过 Mathlib 的
+\texttt{AEEqFun} 乘法和 \texttt{Lp} 成员判定构造，并证明了 a.e. 点值公式。
+对于任意候选奇异算子 \(B:L^p\to L^p\)，代码再定义
+\[
+ K=M_\mu\circ B,
+ \qquad
+ \lVert K\rVert\leq C\lVert B\rVert.
+\]
+\texttt{LpNeumannBeltramiProblem} 将条件
+\(C\lVert B\rVert<1\) 直接接入前面的 Neumann 固定点定理，因而现在的形式化路线已经明确
+区分了“系数乘法”和“Beurling 型奇异积分”这两个本质不同的分析输入。由现有
+\texttt{BeltramiCoefficient} 到该结构的转换也已证明可保留严格小于一的上界；但
+Beurling 变换的核、\(L^p\) 有界性以及固定点到全局同胚的正则性提升仍未声称完成。
+
+在此基础上，\texttt{MathlibBeltramiFourier}\allowbreak\texttt{.lean} 把 \(L^2\) 情形再向真实的
+谱模型推进。定义
+\[
+ m(\xi)=
+ \begin{cases}
+ \overline{\xi}/\xi,&\xi\ne0,\\
+ 0,&\xi=0,
+ \end{cases}
+\]
+代码证明 \(m\) 可测且 \(\lVert m(\xi)\rVert\leq1\)。因此，前面已经构造的系数乘法器可以直接
+作用在 Fourier 侧的 \(L^2(\mathbb C)\)；Mathlib 的 Plancherel 线性等距同构再把它共轭回物理侧，
+得到实际的
+\[
+ \mathcal B_2=\mathcal F^{-1}M_m\mathcal F,
+ \qquad
+ \lVert\mathcal B_2\rVert\leq1.
+\]
+这一步是真正的 Hilbert 空间算子，而非只写下一个存在性命题；但边界必须写清：当前代码尚未证明
+主值奇异积分核与该谱模型的等同，也未证明 Calderón--Zygmund 理论给出的所有
+\(1<p<\infty\) 的 \(L^p\) 有界性，更没有把固定点自动提升为归一化全局同胚。
+
+当物理侧系数 \(c\) 的给定本质上界满足 \(C<1\) 时，
+\texttt{beurlingL2NeumannProblem} 又把 \(\mathcal B_2\) 与前面的系数乘法器放回同一个
+\texttt{LpNeumannBeltramiProblem}：由 \(\lVert\mathcal B_2\rVert\leq1\) 得
+\[
+ C\lVert\mathcal B_2\rVert\leq C<1,
+\]
+于是唯一固定点和存在性直接继承自 Neumann 层。\par
+代码还给出相对于体积测度的
+\texttt{BeltramiCoefficient} 到该 \(L^2\) 问题的显式转换。这里的测度限制是有意的：若系数
+使用另一测度，必须另外提供它与 Fourier/体积测度之间的运输或绝对连续性数据，不能静默替换。
+
+\texttt{MathlibBeltramiCalderonZygmund}\allowbreak\texttt{.lean} 把这条边界继续拆成可审计的数据。
+它显式定义平面 Beurling 核
+\[
+ K_B(z)=
+ \begin{cases}
+ -\pi^{-1}z^{-2},&z\ne0,\\
+ 0,&z=0,
+ \end{cases}
+\]
+以及避开奇点的截断核和 Bochner 截断积分。结构
+\texttt{BeurlingLpOperatorWitness} 记录一个真实的 \(L^p(\mathbb C)\) 连续线性算子及其范数上界；
+其 \texttt{neumannProblem} 定理把
+\[
+ C\,\lVert\mathcal B_p\rVert\leq C\,N_p<1
+\]
+直接转成前面已经证明的 \(L^p\) Neumann 存在性和唯一性。
+\par
+更强的结构 \texttt{BeurlingCalderonZygmundWitness} 还要求对每个 \(L^p\) 函数，截断积分沿
+\(\varepsilon_n=(n+1)^{-1}\) 在几乎处处意义下收敛到该算子。这正是主值核识别和
+Calderón--Zygmund \(L^p\) 有界性在形式化中的正确落点；当前代码没有伪造这个见证。
+已构造的 \(L^2\) Fourier 算子被单独封装成 \texttt{beurlingL2OperatorWitness}，因此可复用其
+范数证明，但尚未把它冒充为主值收敛定理。
+
+\texttt{MathlibBeltramiCalderonZygmund}\allowbreak\texttt{.lean} 现在还补上了这条分析边界的
+基础可审计引理。Lean 证明在 \(z\ne0\) 时
+\[
+ \lVert K_B(z)\rVert=\pi^{-1}\lVert z\rVert^{-2},
+ \qquad
+ \lVert K_\varepsilon(z)\rVert\leq\pi^{-1}\varepsilon^{-2}\quad(\varepsilon>0),
+\]
+并证明 Beurling 核及固定尺度截断核是可测函数。\par
+若输入 \(f\) 相对于体积测度是
+\texttt{AEStrongly}\allowbreak\texttt{Measurable}，则
+\[
+ y\longmapsto K_\varepsilon(x-y)f(y)
+\]
+也是 a.e. 强可测的。截断积分还满足代表元的 a.e. 不变性：
+\(f=g\) a.e. 会导致对应积分相等；零输入时积分为零；在两个被积函数分别可积的
+明确假设下，积分对加法成立。对于可积输入且 \(\varepsilon>0\)，Lean 还证明截断被积
+函数是 Bochner 可积的，并给出固定尺度的 \(L^1\) 点态估计
+\[
+ \lVert T_\varepsilon f(x)\rVert
+ \leq \bigl(\pi^{-1}\varepsilon^{-2}\bigr)
+       \int_{\mathbb C}\lVert f(y)\rVert\,dy.
+\]
+同一文件还证明了第一个离散的核级极限：若 \(z\ne0\)，则
+\[
+ K_{(n+1)^{-1}}(z)\longrightarrow K_B(z)\qquad(n\to\infty).
+\]
+对于 \(\varepsilon_1\leq\varepsilon_2\)，代码还把两次截断之差精确识别为环带上的核：
+\[
+ K_{\varepsilon_1}(z)-K_{\varepsilon_2}(z)
+ =
+ \mathbf 1_{\{\varepsilon_1\leq\lVert z\rVert<\varepsilon_2\}}(z)\,K_B(z).
+\]
+在两个截断被积函数可积的明确假设下，该恒等式进一步提升为 Bochner 积分之差的环带积分
+表达式。这一步把主值问题的剩余核心准确压缩为环带积分的消失或抵消估计。\par
+在此基础上，若 \(f\) 可积并且相对于固定点 \(x\)，
+\(f\) 在某个半径 \(\delta>0\) 的邻域外才可能非零（以 a.e. 形式给出），
+Lean 还调用支配收敛定理证明
+\[
+ T_{(n+1)^{-1}}f(x)\longrightarrow
+ \int_{\mathbb C}K_B(x-y)f(y)\,dy.
+\]
+这是避开奇点区域上的真实极限交换定理；它明确没有覆盖奇点附近的主值抵消，也没有升级成
+一般 \(L^p\) Calderón--Zygmund 有界性。对离散尺度
+\(\varepsilon_n=(n+1)^{-1}\)，代码把相应的截断积分序列命名为
+\texttt{beurlingTruncatedIntegralSequence}，并从上述极限得到其 Cauchy 序列推论。\par
+
+物理侧计算随后又推进了一步。对于 Schwartz 函数 \(\varphi\)，两个轨道振荡定理
+（\texttt{SchwartzMap.\allowbreak norm\_fderiv\allowbreak\_le\allowbreak\_seminorm\allowbreak\_first}
+与 \texttt{SchwartzMap.\allowbreak norm\_sub\allowbreak\_quarterTurn\allowbreak\_le}）
+在 Lean 中给出真实的轨道振荡估计：
+
+\[
+ \lVert\varphi(y)-\varphi(x+i(y-x))\rVert
+ \leq 2\,p_{0,1}(\varphi)\,\lVert x-y\rVert .
+\]
+
+这里的证明使用全空间上的 Fréchet 导数界和均值型估计，而不是另加一个未证明的
+``Holder'' 命题。代码还证明
+\texttt{SchwartzMap.\allowbreak integrable\allowbreak\_beurling\allowbreak Truncated\allowbreak Integrand}，
+因而每个正截断尺度下，
+Schwartz 输入的实际截断被积函数是 Bochner 可积的。更重要的是，
+\texttt{beurlingTruncatedIntegral\_centered\_eq} 使用可测同胚
+\(y\mapsto x-y\) 及其保持 Lebesgue 测度的性质，严格得到
+
+\[
+ T_\varepsilon f(x)
+ =
+ \int_{\mathbb C}K_\varepsilon(z)f(x-z)\,dz .
+\]
+
+这就是把物理截断核放到奇点中心后的 Fourier--核比较形式。当前版本已经进一步完成了局部
+主控函数的径向校准：后文的定理严格证明半径为 \(r\) 的局部积分按 \(r\) 线性缩放，并把
+单位半径常数归一化为 \(2\pi\)。因此，奇点附近 Schwartz 输入的主值收敛已有显式速率；但
+与乘子 \(m(\xi)=\overline{\xi}/\xi\) 的 Fourier--核识别仍是下一阶段的明确解析目标。\par
+
+主值问题的剩余分析输入现在也有了精确的 Lean 接口。
+\texttt{BeurlingAnnularCauchyData f x} 记录一个模函数
+\(\omega:\mathbb N\to\mathbb R\)、\(\omega(n)\to0\)，以及对 \(m\le n\) 的估计
+\[
+ \operatorname{dist}(T_m f(x),T_n f(x))\le\omega(m).
+\]
+由此，Lean 证明截断积分序列是 Cauchy 序列，并利用 \(\mathbb C\) 的完备性得到某个主值极限。
+\texttt{BeurlingAnnularCancellationWitness} 再把该数据提升为 \(L^p\) 输入的 a.e. 见证，
+从而得到 a.e. 的主值极限存在性。这里仍然没有把极限识别为给定的有界 \(L^p\) 算子值；
+这一步正是后续 Calderón--Zygmund 核识别定理的独立输入。\ 
+\texttt{BeurlingPrincipalValueIdentification}\allowbreak\texttt{Witness} 现在单独记录
+\[
+ T_{\varepsilon_n}f(x)\longrightarrow L
+ \quad\Longrightarrow\quad
+ L=\mathcal B_p f(x),
+\]
+并由 \texttt{toBeurlingCalderonZygmundWitness} 定理把环带抵消与识别字段自动组装成原有的
+\texttt{BeurlingCalderonZygmundWitness}。因此，剩余的完整分析目标已经被压缩为一个明确的
+核识别输入，而不是隐藏在一个无法审计的总假设中。\par
+
+环带抵消现在也有了一个真正的测度论版本。\texttt{beurlingKernel\_mul\_I}、其环带指标版本，
+以及以 \(x\) 为中心的四分之一转动版本证明
+\[
+ K_B(iz)=-K_B(z).
+\]
+\texttt{BeurlingAnnularAntisymmetryData} 要求一个可测嵌入且保体积的对称变换、环带被积
+函数的可积性，以及该被积函数在变换下变号。其
+\texttt{integral\_eq\_zero} 定理通过换元把积分变成自身的负值，因而严格证明环带积分为零。
+\texttt{quarterTurnAboutHomeomorph} 把这个变换实现为真实的 \texttt{Homeomorph}；Lean
+还通过两个平移与线性四分之一转动等距同构的复合，证明它保持体积测度。
+进一步的 \texttt{beurlingAnnularIntegral\_eq\_zero\_of\_quarterTurnInvariant} 对 a.e.
+四分之一转动不变的输入直接构造上述数据并证明具体环带积分为零。这是几何抵消的第一个
+可调用特例。更一般地，\texttt{beurlingAnnularIntegral\_eq\_half\_quarterTurn\_difference}
+把环带积分改写为核与
+\(f(y)-f(x+i(y-x))\) 的一半积分；精确不变性使该差为零，而一般情形可将其振荡估计
+送入环带主控函数。Lean 随后证明相应的环带范数估计以及两次截断积分之间的距离估计。
+结构 \texttt{BeurlingQuarterTurnCauchyData} 封装可积截断、随初始尺度变化的主控函数、
+主控函数积分的上界以及趋于零的模函数；\texttt{toAnnularCauchyData} 将这些具体数据
+转换为前面定义的 Cauchy/主值接口。现在已有第一个非零实例：
+\texttt{beurlingClosedBallIndicator x R} 是以 (x) 为中心的有限闭圆盘指标函数；Lean
+证明其四分之一转动不变性、每个截断的可积性，并给出实际的主值存在定理。剩余的分析任务
+还包括证明截断核本身的四分之一转动反对称性；因此，对一般四分之一转动不变的可积输入，
+Lean 现在证明每个正尺度截断积分都为零。进一步，
+\texttt{beurlingClosedBallSimple x s} 表示有限个同心闭圆盘指标函数的复系数线性组合，
+其中各项的系数和半径可以不同；代码证明其截断积分恒为零，并证明离散主值序列收敛到
+零。这给出第一个显式的主值识别结果，而剩余的分析任务仍是把精确四分之一转动不变性
+推广为真正变化的系数类或函数类主控函数。另一方面，代码还证明了一个互补的分离圆盘
+定理：若以 \(z\) 为中心的圆盘在取值点 \(x\) 周围留出显式距离余量 \(\delta>0\)，则
+支配收敛把主值极限识别为普通 Beurling 核积分。由此，当前已经有“中心对称抵消得到零”
+和“远离奇点得到普通积分”两种可组合的主值基元。\par
+本轮进一步把局部振荡从抽象主控函数推进到一个真正非不变的可积样例。定义
+\[
+ f_{x,R}(y)=\mathbf 1_{\overline B(x,R)}(y)(y-x)^2.
+\]
+四分之一转动下，二次项变号，因此配对差为两倍二次项；另一方面，Beurling 核的二阶
+奇性与该二次消失恰好抵消。Lean 构造了尺度主控函数
+\texttt{beurlingQuadraticClosedBallMajorant x m}，证明其积分趋于零，并将数据送入
+\texttt{BeurlingQuarterTurnCauchyData} 得到主值存在性。随后用支配收敛把主值识别为
+普通核积分，并在 \(R\ge0\) 时进一步算出显式值
+\[
+ \operatorname{p.v.}\,Bf_{x,R}(x)=-R^2.
+\]
+这是第一个由非零局部振荡而非精确旋转不变性控制的主值实例。下一步仍需把二次抵消估计
+推广到一般局部光滑/Hölder 类，并将其接入 a.e. 的 \(L^p\) 算子识别见证。\par
+
+\textit{新增组合层：} \texttt{BeurlingQuarterTurnCauchyData.add} 已证明该数据结构对函数相加封闭：主控函数和
+模函数逐项相加，截断可积性与振荡估计均由加法和三角不等式得到。具体地，
+\texttt{beurlingQuadraticClosedBallAdd x R S} 给出两个二次圆盘项的有限叠加，并在
+\(R,S\ge0\) 时证明
+\[
+ \operatorname{p.v.}\,B(f_{x,R}+f_{x,S})(x)=-R^2+(-S^2).
+\]
+这使主值控制第一次从孤立测试函数提升为可组合的函数类基元。\par
+
+进一步，代码定义整数阶消失族
+\[
+ f_{j,x,R}(y)=\mathbf 1_{\overline B(x,R)}(y)(y-x)^{j+2},
+ \qquad j\in\mathbb N.
+\]
+\texttt{beurlingVanishingClosedBall} 的可积性和局部四分之一转动振荡估计已被证明。
+这些估计由下列数据结构封装：
+\begin{quote}
+\texttt{BeurlingQuarterTurnCauchyData}
+\end{quote}
+对应主控函数
+\texttt{beurlingVanishingClosedBallMajorant j x m} 的积分被精确算出为
+\[
+ \int g_{j,x,m}
+   =\bigl((m+1)^{-1}\bigr)^{j+2}\longrightarrow0.
+\]
+因此每个整数阶模型都有主值存在性；\(j=0\) 的回归定理又严格还原前述二次圆盘结果。
+这是一条由可审计的整数阶离散模型通向任意 Hölder 指数的桥梁：下一步只需替换幂指数，
+而不必重新设计环带配对接口。\par
+
+下一层不是把 $((y-x)^\alpha)$ 当作复值测试函数，而是直接把局部 Hölder 振荡作为输入。
+结构 \texttt{BeurlingHolderQuarterTurnWitness} 记录实数指数 \(\alpha>0\)、常数 \(C\ge0\)，
+以及几乎处处估计
+\[
+ \lVert f(y)-f(Q_x y)\rVert\le C\lVert x-y\rVert^\alpha.
+\]
+它还要求核与该模函数的乘积有可积主控，并要求主控积分满足
+\[
+ \int g_m\le C((m+1)^{-1})^\alpha.
+\]
+定理 \texttt{tendsto\_holderModulus\_zero} 证明这个模函数趋于零，
+\texttt{toQuarterTurnCauchyData} 将其转换为现有的环带 Cauchy 数据，
+而 \texttt{principalValue\_exists} 给出主值存在性。这里保留了一般 Hölder 的实数指数，
+同时避免引入复幂分支。\par
+
+\begin{sloppypar}
+本轮已经把这个抽象接口落实到具体的 Schwartz 输入。定义
+\texttt{SchwartzMap.\allowbreak beurlingHolderQuarterTurnWitness} 时取 Hölder 指数为 \(1\)，常数为
+Schwartz 的一阶导数半范数的两倍，并使用
+\texttt{beurlingLocalInverseMajorant} 作为实际主控函数。两个新校准定理
+\texttt{integral\_beurlingLocalInverseMajorant\allowbreak\_on\_ball\_eq\_linear} 与
+\texttt{integral\_beurlingLocalInverseMajorant\allowbreak\_eq\_two\_mul\_pi} 给出
+\[
+ \int_{B(x,r)} \frac{\mathbf 1_{\lVert x-y\rVert<1}}{\lVert x-y\rVert}\,dy
+ =2\pi r \qquad (0<r\le1).
+\]
+因而主控模函数具有可见的线性衰减 \(2S_1(\varphi)/(m+1)\)，并由
+\texttt{SchwartzMap.\allowbreak principalValue\_exists\_via\_holder} 导出每个 Schwartz 输入的主值存在性。
+这一步完成了“局部奇点估计到主值收敛”的具体层；剩下的不是收敛性，而是把这个物理极限
+与 Fourier 乘子严格识别起来。\par
+\end{sloppypar}
+
+整数阶闭圆盘族现在也有了具体适配器
+\texttt{beurlingVanishingClosedBall\_holderWitness j x R}。它取指数 \(j+2\)，使用闭圆盘
+指标函数沿四分之一转动轨道的振荡估计，并复用已经精确计算的闭圆盘主控函数。因此，
+整数阶模型不再只是旧 Cauchy 结构的孤立例子，而是确实落入一般实指数接口，并继承
+\texttt{BeurlingHolderQuarterTurnWitness.principalValue\_exists}。这里的 ``Hölder'' 必须理解为
+方向性的局部振荡控制：代码没有声称尖锐闭圆盘指标函数跨越边界具有全局 Hölder 正则性，
+只证明主值配对实际使用的四分之一转动轨道估计。\par
+
+这条局部层到 \(L^p\) 层的桥梁现在也已显式加入。结构
+\texttt{HolderAnnularCancellationWitness} 要求每个 \(L^p\) 输入在几乎处处点上
+存在 Hölder 见证，并由 \texttt{principalValue\_exists\_ae} 给出几乎处处主值极限；
+\texttt{toBeurlingAnnularCancellationWitness} 再把它送入原有环带抵消接口。这里有意停在
+算子识别之前：极限是否等于给定的有界 \(L^p\) 算子值，仍由独立的
+\texttt{PrincipalValueIdentificationWitness} 负责。因而当前形式化路线是
+\[
+ \text{局部方向性 Hölder 数据}
+ \longrightarrow \text{a.e. 环带 Cauchy 数据}
+ \longrightarrow \text{a.e. 主值存在性}
+ \longrightarrow \text{独立的核识别}.
+\]
+\par
+
+这一分层现在也有了直接的组合接口。
+\texttt{HolderPVIdentificationWitness} 在 a.e. Hölder 见证之外，
+额外要求每个已经存在的主值极限都等于给定的 \(L^p\) 算子值；随后代码先把它转换为
+\texttt{PrincipalValueIdentificationWitness}，再转换为
+\texttt{CalderonZygmundWitness}。因此完整边界可以直接读成
+\[
+ \text{Hölder 正则性}
+ \longrightarrow \text{环带抵消}
+ \longrightarrow \text{主值存在性}
+ \longrightarrow \text{算子识别}.
+\]
+这里最后一步仍然是必须由真正 Calderón--Zygmund 理论提供的分析输入；新增构造器本身没有
+偷偷加入任何未证明的算子恒等式。\par
+
+同一文件还新增了统一尾估计接口
+\texttt{BeurlingUniformPrincipalValueTailWitness}。它记录一个有界 \(L^p\) 算子、非负模函数
+\(\omega(n)\to0\)，以及几乎处处的估计
+\[
+ \operatorname{dist}(T_n f(x),Bf(x))\le \omega(n)\lVert f\rVert_p.
+\]
+定理 \texttt{principalValue\_ae} 直接由度量空间的 \texttt{tendsto\_atTop} 判据推出主值收敛，
+并可把结果接回既有的 Calderón--Zygmund witness。于是后续真正需要补入的是统一尾估计及
+算子范数估计本身，极限论证不再在各个分析入口中重复出现。\par
+
+这一尾估计现在还有一个可复用的定量组合层。
+\texttt{MonotonePrincipalValueTailWitness} 额外要求模函数反单调；因此当
+\(m\le n\) 时，两个截断分别与算子值比较，再由三角不等式得到
+\[
+ \operatorname{dist}(T_m f(x),T_n f(x))
+ \le 2\,\omega(m)\lVert f\rVert_p.
+\]
+构造器 \texttt{toBeurlingAnnularCancellationWitness} 将这个估计送入环带 Cauchy 接口，
+而 \texttt{principalValueIdentificationWitness} 用极限唯一性把主值识别为给定的算子值；
+最后再由 \texttt{toBeurlingCalderonZygmundWitness} 组装完整见证。于是，后续真正的
+Calderón--Zygmund 证明可以集中为一个单调统一尾估计和一个算子范数估计，而不必重复
+书写主值存在性与识别的逻辑。\par
+
+算子识别层现在还补上了唯一性定理。
+\texttt{operator\_eq\_of\_principalValue} 证明：若两个连续的 \(L^p\) 算子都把同一截断
+序列的几乎处处极限识别为自己的算子值，那么它们必相等。证明只用 \(L^p\) 的 a.e.
+外延性和极限唯一性，但以后不必在不同模型中重复这一步。\par
+
+{\small
+因此 Fourier \(L^2\) 模型的下一个目标被精确写成一个命题。其代码名为
+\texttt{BeurlingL2PrincipalValue}\allowbreak\texttt{IdentificationGoal}：
+物理截断 Beurling 序列几乎处处收敛到 \texttt{beurlingL2Operator}。这个命题目前仍是
+待证明的 Fourier--核识别输入，并非由定义伪造。\par
+
+一旦给出这个目标命题，代码便自动构造完整的 \(L^2\) 见证，并自动识别任何其他完整见证
+与 Fourier 模型相同。对应的构造器和识别定理分别是
+\texttt{beurlingL2CalderonZygmundWitness}\allowbreak\texttt{\_of\_goal} 与
+\texttt{operator\_eq\_beurlingL2}\allowbreak\texttt{\_of\_goal}。\par
+}
+
+还可以把这个目标进一步压缩到自然的测试函数域。
+Mathlib 已证明
+\[
+ \mathcal S(\mathbb C)\longrightarrow L^2(\mathbb C)
+\]
+的 Schwartz 嵌入具有稠密像。于是
+\texttt{continuousLinearMap\_eq\_of\_eq\_on\_schwartz} 证明：两个连续的 \(L^2\) 算子
+只要在每个 Schwartz 函数的 \(L^2\) 像上一致，就在整个 \(L^2\) 上一致。
+谓词 \texttt{BeurlingL2SchwartzCalibration} 记录完整 Calderón--Zygmund 见证与
+\texttt{beurlingL2Operator} 的这种校准，而
+\texttt{operator\_eq\_beurlingL2\_of\_schwartzCalibration} 用稠密性升级为算子恒等。
+因此后续 Fourier--核证明可以先在 Schwartz 测试域完成，再通过连续性延拓；
+这一步没有把测试域上的主值计算误写成已经完成的 \(L^2\) 主值定理。\par
+
+这条分解现在也已写成 Lean 定理。谓词
+\texttt{SchwartzPVGoal} 只要求 Schwartz 输入上的几乎处处主值极限；
+\texttt{SchwartzCalibration} 用极限唯一性把它转换成任何完整 CZ 见证的测试域校准，最后
+\texttt{operator\_eq\_beurlingL2\_of\_schwartzCalibration} 再结合 Schwartz 稠密性得到
+整个连续 \(L^2\) 算子的恒等。完整 \(L^2\) 目标可由
+\texttt{PrincipalValueGoal.schwartz} 限制到该测试域；反向推理
+则明确要求已经存在一个完整 CZ 见证，因为一般 \(L^2\) 输入的主值存在性与极限交换仍是
+真正的分析工作。\par
+
+还可以再把测试域目标拆开：
+\texttt{SchwartzPVExistenceGoal} 只要求主值极限存在，
+而 \texttt{SchwartzHolderWitness} 记录局部 Hölder 估计、环带主量函数和截断积分的
+可积性。其 \texttt{principalValue\_exists} 定理直接从 Hölder--环带见证推出主值存在。
+已有的全 $L^2$ Hölder 见证也可由
+\texttt{toL2SchwartzHolderWitness} 限制到 Schwartz 域，因此这不是孤立的新公理，而是
+对前一层 Calderón--Zygmund 结构的真正复用。最后，
+\texttt{SchwartzPrincipalValueIdentificationWitness} 单独记录“主值极限等于
+Fourier $L^2$ 算子值”的识别输入；其余 Lean 推论自动给出 Schwartz 主值目标和算子恒等。
+所以目前唯一尚未被形式化证明的核心仍是 Fourier--核识别，而不是主值存在性或稠密延拓。\par
+
+物理侧的主值存在性随后又推进了一步。新定义
+\texttt{beurlingLocalInverseMajorant} 是实际的局部函数
+\(\mathbf 1_{\lVert z\rVert<1}\lVert z\rVert^{-1}\)，其可积性由二维实空间中的幂函数可积性定理证明；
+平移到以 $x$ 为中心的收缩圆盘后，积分趋于零。结合 Schwartz 函数的一阶半范数，
+\texttt{SchwartzMap\allowbreak.norm\allowbreak\_beurling\allowbreak\_quarterTurn\allowbreak\_pairing\allowbreak\_le\allowbreak\_localOscillationMajorant}
+证明四分之一转动配对的环带积分被该局部逆距离主控函数的标量倍数控制。
+构造器 \texttt{SchwartzMap\allowbreak.beurling\allowbreak\_quarterTurn\allowbreak\_cauchy\allowbreak\_data}
+遂把这些估计组装成具体定理
+\texttt{SchwartzMap\allowbreak.principalValue\allowbreak\_exists}：每个 Schwartz 输入的截断
+Beurling 积分序列都有点态主值极限。这完成了 Schwartz 测试域上的“收敛”半边，
+但仍没有把极限识别为 \texttt{beurlingL2Operator} 的值；该 Fourier--核校准仍是中心未决定理。\par
+
+Fourier 模型本身现在也在 Schwartz 测试域上完成了精确归一化。
+\texttt{beurlingL2Operator\allowbreak\_fourier\allowbreak\_eq} 证明
+\[
+ \mathcal F(Bf)=m\,\mathcal Ff,
+ \qquad m(\xi)=\overline\xi/\xi\quad(\xi\ne0),
+\]
+其中 $B$ 是物理侧的 $L^2$ 模型；
+\texttt{beurlingL2Operator\allowbreak\_fourier\allowbreak\_eq\allowbreak\_on\allowbreak\_schwartz}
+使用 Mathlib 的 Schwartz--$L^2$ Fourier 相容性，另一个 a.e. 版本把乘子展开为点态公式。
+\texttt{beurlingSymbol\allowbreak\_norm\allowbreak\_eq\allowbreak\_one} 则证明非零频率上
+乘子模长恰为 $1$。因此下一步的 Fourier--核问题已经具体化为：证明物理截断核在 Schwartz
+域上实现这个明确的频率乘子。\par
+
+这一校准层现在又向前推进了一步。
+\texttt{norm\_beurlingFourierMultiplier\_eq} 利用非零频率上的
+$\lVert m(\xi)\rVert=1$ 以及单点的零测性，证明 Fourier 乘子在 $L^2$ 上是等距的；由
+Plancherel 得到物理侧模型的
+\texttt{norm\_beurlingL2Operator\_eq} 和单射性。弱形式
+\texttt{beurlingL2Operator\_inner\_eq\_fourierMultiplier} 把算子配对写成 Fourier 侧
+乘子配对，并有 Schwartz 测试函数版本。
+
+在 Calderón--Zygmund 接口中，
+\texttt{BeurlingL2SchwartzFourierCalibration} 现在明确要求完整见证在 Schwartz 域满足
+这个频率公式。Fourier 单射性把它升级为通常的 Schwartz 算子校准，再由稠密性升级为
+整个连续 $L^2$ 算子恒等；同时自动推出 Schwartz 主值目标。因此未来真正需要证明的
+只剩下物理截断核在 Schwartz 域上实现该频率乘子的计算，主值见证本身不再承担额外的
+抽象识别步骤。\par
+
+\texttt{MathlibBeltramiNeumannFamily}\allowbreak\texttt{.lean} 随后把 Neumann 层第一次提升为真正的
+参数族定理。结构 \texttt{NeumannForcingFamily} 固定一个满足
+\(\lVert K\rVert<1\) 的复线性有界核，并要求参数空间 \(B\) 上的强迫项
+\(b\mapsto g_b\) 连续；解被定义为每个 \(u_b=g_b+K u_b\) 的唯一 Banach 固定点。
+Lean 现在证明了解的定量稳定性
+\[
+ \operatorname{dist}(u_b,u_{b'})
+ \leq
+ \frac{\operatorname{dist}(g_b,g_{b'})}{1-\lVert K\rVert},
+ \qquad b,b'\in B,
+\]
+并推出 \(b\mapsto u_b\) 连续。这是通向解析族的实际桥梁，但它仍是固定核版本：
+若参数也改变 Beurling 型奇异算子，就必须进一步给出算子范数连续性、主值识别和
+统一 \(L^p\) 控制，不能把本定理直接升级为完整的 Teichmüller 解析族。\par
+
+\texttt{MathlibBeltramiNeumannOperator}\allowbreak\texttt{Family.lean}\linebreak
+继续去掉固定核限制。
+结构 \texttt{NeumannOperatorFamily} 同时记录连续核映射
+\(b\mapsto K_b\)、连续强迫项 \(b\mapsto g_b\)，以及统一的
+\(r<1\) 使 \(\lVert K_b\rVert\leq r\) 对所有参数成立。由此每个
+\(u_b=g_b+K_bu_b\) 都由同一个收缩半径控制，Lean 证明
+\[
+ \operatorname{dist}(u_{b_1},u_{b_2})
+ \leq
+ \frac{\operatorname{dist}(g_{b_1},g_{b_2})
+       +\lVert K_{b_1}-K_{b_2}\rVert\,\lVert u_{b_2}\rVert}
+      {1-r},
+\]
+并推出固定点族连续。这是首次允许算子本身随参数变化的稳定性定理，
+因而比固定核版本更接近可变复结构；但它仍不等同于主值 Beurling 核族。
+还需把主值识别、统一 Calderón--Zygmund \(L^p\) 估计和几何正则性接入，
+才能继续走向可测 Riemann 映射定理。\par
+
+本轮进一步加入了一个非零、可计算的基准模型，见
+\texttt{MathlibBeltramiAffine}\allowbreak\texttt{.lean}。若 $\lVert\mu\rVert<1$ 为常系数，定义
+\[
+ f_\mu(z)=(1+\mu)^{-1}\bigl(z+\mu\overline z\bigr).
+\]
+代码先给出
+\(\,1-\lVert\mu\rVert^2\ne0\,\) 与 \(1+\mu\ne0\)，再显式写出逆映射并证明左右逆律、连续性，
+从而得到真正的 \(\mathbb C\) 上同胚。其一点紧化延拓使用
+\texttt{Homeomorph.onePointCongr}，因此无穷远点固定是由实际同胚结构推出的，而不是额外假设。
+随后 Lean 计算该仿射映射的实 Fréchet 导数，并证明
+\[
+ (f_\mu)^{1,0}=(1+\mu)^{-1},\qquad
+ (f_\mu)^{0,1}=\mu(1+\mu)^{-1},\qquad
+ (f_\mu)^{0,1}=\mu(f_\mu)^{1,0}.
+\]
+最后，\texttt{constantBeltramiAffinePointwiseWitness} 将这些计算组装成固定 $0,1,\infty$
+的逐点归一化解见证。这是第一个真正非零的回归实例：它验证了“系数 $\to$ 导数分解 $\to$
+方程 $\to$ 归一化解”的链条，但不冒充一般可测 Riemann 映射定理；一般系数的存在与唯一性构造仍是
+下一道分析门槛。
+\texttt{constantBeltramiAffineMap\_fderivBeltramiCoefficient} 还反向计算实际
+\texttt{fderiv} 的 Beltrami 商，严格得到同一个常数 $\mu$；因此给定系数与由解的导数恢复系数
+在这个非零模型中已经闭合。
+
+同一文件还定义参数空间
+\[
+ \mathcal B=\{\mu:\mathbb C\mid \lVert\mu\rVert<1\}
+\]
+以及 \texttt{constantBeltramiAffinePointwiseFamilyWitness}。在固定坐标处，其系数值恰为参数
+\(\mu\)；联合解映射的连续性则由分母 \(1+\mu\) 在整个参数空间上不为零，并结合连续倒数定理
+直接证明。因而第一个非零参数化解族已经成为既有族接口的实际实例，而不只是单点回归。
+
+条件化固定点层的结论也已经接到这一总体路线：给定上述方案，
+\texttt{fixedPoint}、迭代收敛和几何误差界均由
+Mathlib 直接导出；\texttt{normalizedSolution} 与
+\texttt{normalizedSolution\_unique} 则把固定点的唯一性转回归一化映射的唯一性。这一步仍
+只在方案字段成立时有效，因而把真正未完成的内容精确定位为“构造算子、完备函数空间以及
+解的编码/解码”，而不是把一个抽象的 \texttt{Nonempty} 字段误当作一般存在性证明。
+
+对模群平移，代码中的 $T$-比较定理证明
+\(\tau+1=T\mathbin{\cdot}\tau\)；随后由格点等式下降为商加法等价，
+再由连续性和开映射性得到商空间同胚，并证明它在商映射生成元上满足
+\[
+  \Phi_T([z]_{\tau+1})=[z]_\tau.
+\]
+因此，局部商空间图表的联合全纯下降以及族过渡的参数坐标兼容性已经写成实际定理；
+\texttt{analyticVariation} 的一般数据化、固定标记族的一般局部全纯平凡化、分类见证以及
+普适族本身仍是需要构造或证明的输入。解析测试映射层已经给出复可微基底映射与局部提升
+的组合规则，但还不是任意解析族的全纯分类定理。换言之，目前完成的是
+\[
+\begin{aligned}
+\text{拓扑}&\to\text{同伦}\to\text{复图册}\to\text{纤维丛}\\
+&\to\text{全纯接口}\to\text{格点商}\to\text{未标记族}\\
+&\to\text{固定标记}\to\text{模群比较}\to\text{普适性接口},
+\end{aligned}
+\]
+而不是 Teichmüller 普适族、可测 Riemann 映射定理或 Beltrami 方程的完整形式化。
+
+\section{与 Langlands 和 IUT 的位置关系}
+
+本项目的主线是可变黎曼曲面与模问题。它与高阶 Teichmüller、表示簇、Higgs bundle 和非阿贝尔 Hodge 理论有直接的现代交汇；沿这些对象可以继续研究几何朗兰兹。IUT 则位于算术几何、Anabelian 几何和 $p$-进方向，使用“变形”和“普适性”的类比，但不是本项目的直接延伸。
+
+因此，本项目不会把 Langlands 或 IUT 预先写成 Teichmüller 纲领的已证结论。若将来要建立桥接，应先给出明确的中间对象，例如：
+
+\[
+  \text{曲线的基本群表示}
+  \longrightarrow
+  \text{character variety}
+  \longrightarrow
+  \text{Higgs bundle/Hitchin 系统}
+  \longrightarrow
+  \text{几何朗兰兹对象}.
+\]
+
+\section{当前结论}
+
+原始“大一统”概念没有以一个完整的现代理论名称保留下来，但其结构骨架仍然可见：
+
+\[
+\boxed{
+\text{标记}\;+\;\text{解析族}\;+\;\text{局部变形}\;+\;\text{普适性}
+}
+\]
+
+本项目的推进方向是把这四项重新组合成一个可验证、可扩展的研究对象。当前已经完成自包含的拓扑、连续性、同伦闭包和标记商，并在 Mathlib 层完成标准同伦、实际复图表、图表级全纯映射、诱导拉回拓扑、标准 FiberBundle 局部平凡化、标准拉回平凡化、逐纤维全纯等价和普适性接口；Mathlib 的模群、上半平面、基本域定理、非恒定判别式模形式、$E_4/E_6/\Delta$ 恒等式以及 $j$ 型权零不变性也已通过 Lean 检查。当前又把固定标记提升 \(L_\tau(z)=\operatorname{Re}(z)+\operatorname{Im}(z)\tau\) 的参数方向作为 \texttt{DifferentiableOn} 部分见证写入 Lean，并把格点估计、局部开像、局部总空间同胚和未商化升起坐标的联合 \texttt{Differentiable} 写入 Lean；本轮又完成了解析测试基底上的真实拉回复曲面图表、参数化 deck 过渡片、相容性证明和完整的局部拉回 \texttt{ComplexSurfaceAtlas}。下一步是补上一般标记族的解析平凡化，推进权零商的全纯/亚纯延拓，并把这些对象连接到 Beltrami 变形、turning-piece 坐标和普适分类映射。
+本轮进一步以 Mathlib 的 \texttt{AddAction} 形式化了 \(\mathbb Z^2\) deck 作用，并证明总空间商的纤维等价于该作用的轨道；同时证明参考标记坐标在上半平面参数上具有单射性。这两项结果分别给出商关系的精确轨道描述与提升层面的参数唯一性，但仍不替代全局复流形、Beltrami 理论或普适族的解析分类定理。
+此外，格点商层已经给出 $\Lambda_\tau$、$\mathbb C/\Lambda_\tau$、紧性及
+$\Lambda_{\tau+1}=\Lambda_\tau$ 的 Lean 见证，并已把离散格点覆盖映射、局部复坐标、
+全纯平移过渡和 \texttt{ComplexAtlas} 组装成实际的复环面对象；现在又加入了依赖和式的
+未标记族、相对于 $i$ 的固定拓扑标记、$T$ 生成元的商空间同胚以及一个真实的局部总空间开图表。
+对解析测试基底，新增的局部拉回图表已经进一步组装成 Mathlib 的
+\texttt{ComplexSurfaceAtlas}，而不再只是开集和连续运输数据。
+本轮还将具体标记环面族转换为统一的 Mathlib \texttt{Family}，并构造了实际的
+\texttt{HolomorphicFamilyClassification}；其参数映射由逐纤维恒等全纯等价实现。针对上半平面
+作为复流形而非复向量空间的类型差异，另以环境复坐标上的
+\texttt{ComplexTorusLocalHolomorphicClassificationWitness} 记录测试域上的
+\(\mathrm{DifferentiableOn}_{\mathbb C}\) 证书。一般标记族的全纯局部平凡化、非平凡模空间
+分离性和普适族仍未完成，不能把当前结果误称为完整的复环面普适族。
+本轮还将“全纯分类存在且分类映射唯一”单独封装为
+\texttt{FineHolomorphicUniversalMarkedFamily}，并将已证明的坐标单射性封装为
+\texttt{ComplexTorusParameterRigidityWitness}；二者分别是精细普适性接口与环面参数分离性的
+明确形式化对象。本轮进一步证明：对于任意局部拉回环面分类见证，分类映射都等于显式的
+\texttt{parameterPoint}，并由此得到任意两份分类见证的映射唯一性；这是测试族上的精细模空间
+定理，但尚未由它推出任意解析族的全局普适性。
+本轮进一步把全局解析族与全局分类见证分离成更强的结构：
+\texttt{GlobalHolomorphicMarked\allowbreak Family} 要求整个依赖和总空间上的实际
+\texttt{ComplexSurfaceFamily\allowbreak Atlas}，并记录全集覆盖、总空间拓扑相等和投影相等；
+\texttt{complexTorusLocalHolomorphicParameter\allowbreak GlobalFamily} 已为局部参数化环面拉回给出具体实例。
+在此基础上，\texttt{GlobalHolomorphicFamily\allowbreak Classification} 还要求规范拉回总空间携带全局图册，
+而 \texttt{GlobalFineHolomorphicUniversal\allowbreak MarkedFamily} 把普适量词严格放在这些全局解析族对象上。
+这一步使“逐纤维双全纯”与“全局解析族存在”在类型层面不可混淆；当前仍没有任意高亏格解析族
+的全局普适实例，故主线仍须继续推进。
+进一步，\texttt{ComplexTorusMarkedComplexLinearLift} 的恒等性定理已经把“复线性提升保持
+周期基”推出参数相等写成 Lean 定理；规范标记变换的复线性条件也已被单独命名。现在又证明了
+一般保持标记的双全纯商映射确实唯一归一化为规范过渡，并由其全局图表级全纯性产生这样的规范提升。
+对规范标记变换本身，代码还证明了复线性条件与参数相等的充要性，从而把这条中间判据闭合为
+一个可直接复用的定理。
+本轮又把商空间层的保持标记双全纯映射归一化为唯一的规范过渡，并证明其存在性等价于规范过渡
+的图表级全纯性；结合下面的反向局部解析定理，映射本身、规范过渡和复线性提升三种描述已经统一。
+本轮还闭合了局部解析的正反两向：图表坐标与实线性提升之差局部常值；提升复线性时规范过渡的正逆
+图表表达均满足 \texttt{DifferentiableOn}，反过来规范过渡的全局图表级全纯性又强制提升复线性。
+因此，在当前具体的复环面标记模型中，保持标记双全纯映射存在性已经等价于规范标记变换复线性，
+再等价于两个上半平面参数相等。更高亏格的普适族、Beltrami 方程和一般模空间分类仍是后续工作。
+
+Beltrami 轴现在至少具有一个可验证的族级起点：系数在显式测度下可测且本质有界，拉回在绝对连续
+测度运输下满足恒等与复合律，并可要求其在固定坐标处随参数连续；零系数恒等族则构成退化测试。
+标量传输 cocycle 的三重拉回、导数依赖的 \(D^{1,0}/D^{0,1}\) 复合公式、实际
+\texttt{fderiv} 的函数复合公式，以及点态真实可微 differential cocycle 都已写成 Lean 定理；
+现在又加入了 \texttt{AEBeltramiDifferentialTransportCocycle} 及其真实可微 a.e. 扩展，
+把图表级强可测微分场、系数变换律和微分 cocycle 的几乎处处版本写成显式字段与可检查定理；
+旧的点态结构只有在额外给出微分场可测性时才能转换到该层。因而“坐标变化的函子性”和
+“参数化变形”的输入边界进一步收紧，但正则性提升、可测 Riemann 映射定理和解的存在唯一性
+仍未形式化。本轮再将它接到具体的 \texttt{ComplexAtlas}：重叠限制测度、实际图表过渡、三重重叠
+复合、测度绝对连续运输及由 \texttt{fderiv\_comp} 推出的局部 a.e. 链式律均已写入 Lean，且常值
+复平面族给出了逐纤维族接口的回归实例；\texttt{ComplexAtlas.toC1ComplexAtlas} 与
+\texttt{C1LocalBeltramiInput.toLocal} 又使全纯过渡自动生成连续重叠导数场，再生成强 a.e. 可测的局部微分字段。
+\texttt{FiniteMeasureC1LocalBeltramiInput} 已补上有限测度情形的系数可积性充分条件。接下来最关键的分析增量转为：
+把这些可积性输入接到 \texttt{NormalizedBeltramiHomeomorph} 的构造，继而把条件性唯一性见证
+接入可测 Riemann 映射定理和解析族的普适性。当前又加入了
+\texttt{PointwiseNormalizedBeltramiFamilyWitness}，其联合连续的解映射已经可以构造为
+\texttt{BeltramiFamilyData}；但这些见证仍是分析输入，尚未从
+\(\|\mu\|_\infty<1\) 与可积性自动构造单个解或解族。
+
+本轮的算子层因此形成了一个更精确的后续路线：
+\[
+\begin{aligned}
+\text{可测系数 }\mu
+&\longrightarrow \text{乘法算子 }M_\mu
+ \longrightarrow \text{系数乘奇异算子 }K=M_\mu B\\
+&\longrightarrow \text{主值/\(L^p\) 算子见证}
+ \longrightarrow \text{Neumann 固定点}
+ \longrightarrow \text{参数连续解族（含可变算子）}\\
+&\longrightarrow \text{a.e. Beltrami 解}
+ \longrightarrow \text{归一化全局同胚}
+ \longrightarrow \text{解析族与普适性}.
+\end{aligned}
+\]
+目前 Lean 已经完成中间的抽象固定点、收敛和唯一性步骤，并验证了标量 Neumann 模型；
+真正尚待推进的是 Beurling 型算子的构造与正则性估计，以及由函数空间解恢复几何映射的步骤。
+
+\bibliographystyle{plain}
+\bibliography{doc/references}
+
+\end{document}

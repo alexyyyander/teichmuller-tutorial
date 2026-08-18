@@ -1,0 +1,52 @@
+# LaTeX build files
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+*.bbl
+*.blg
+*.nav
+*.snm
+*.vrb
+
+# Build directories
+build/
+docs/build/
+
+# Lean build files
+.lake/
+.build/
+lake-packages/
+
+# PDF files (generated)
+*.pdf
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.orig
+
+# Node.js files (if using any tooling)
+node_modules/
+package-lock.json
+
+# Python files (if using any scripts)
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
