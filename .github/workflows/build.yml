@@ -24,10 +24,6 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y texlive-xetex texlive-fonts-recommended texlive-latex-extra texlive-fonts-extra fonts-noto-cjk
 
-    - name: Compile Chinese version - Foundations
-      working-directory: docs/tutorial/foundations
-      run: xelatex -interaction=nonstopmode foundations_intro.tex
-
     - name: Compile Chinese version - Advanced
       working-directory: docs/tutorial/advanced
       run: xelatex -interaction=nonstopmode teichmuller_program.tex
@@ -36,7 +32,5 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: pdf-documents
-        path: |
-          docs/tutorial/foundations/*.pdf
-          docs/tutorial/advanced/*.pdf
+        path: docs/tutorial/advanced/*.pdf
         retention-days: 30
