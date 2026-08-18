@@ -1,6 +1,8 @@
-# Teichmüller 统一研究路线
+# Über Teichmüller's Einheitliches Programm
 
 > *继续 Oswald Teichmüller 的未竟事业：将可变黎曼曲面理论统一为可验证的形式化系统*
+
+**[English Version](README.md)** | **[Deutsch](#vision)**
 
 [![Build PDF](https://github.com/alexyyyander/teichmuller-tutorial/actions/workflows/build.yml/badge.svg)](https://github.com/alexyyyander/teichmuller-tutorial/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
