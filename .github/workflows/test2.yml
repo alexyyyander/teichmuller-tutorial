@@ -1,0 +1,20 @@
+name: Test LaTeX
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install LaTeX
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y texlive-xetex texlive-fonts-recommended texlive-latex-extra texlive-fonts-extra fonts-noto-cjk
+    - name: Test compile
+      working-directory: docs/tutorial/advanced
+      run: |
+        echo "Testing compilation of teichmuller_program.tex"
+        xelatex -interaction=nonstopmode teichmuller_program.tex 2>&1 | head -50
