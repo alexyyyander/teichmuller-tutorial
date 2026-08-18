@@ -1,145 +1,129 @@
-# Teichmüller 统一研究路线
+# Teichmüller Unified Research Program
 
-> *继续 Oswald Teichmüller 的未竟事业：将可变黎曼曲面理论重新统一为可验证的形式化系统*
+> *Continuing Oswald Teichmüller's unfinished work: unifying variable Riemann surface theory into a verifiable formal system*
 
 [![Build PDF](https://github.com/alexyyyander/teichmuller-tutorial/actions/workflows/build.yml/badge.svg)](https://github.com/alexyyyander/teichmuller-tutorial/actions/workflows/build.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
----
-
-## 核心愿景
-
-**恢复 Teichmüller 在1944年提出的统一路线，让复几何、拓扑与算术在同一个框架下重新汇合。**
-
-```
-拓扑曲面 → 复结构 → 标记黎曼曲面 → T(S) → M(S) → 解析族
-     ↑                                                    ↓
-     └────────────── 形式化验证（Lean 4）──────────────────┘
-```
+**[中文版本](README.zh-CN.md)**
 
 ---
 
-## Teichmüller 与他的遗产
+## Vision
 
-**Oswald Teichmüller**（1913–1943），哥廷根学派最后的继承者之一。
+**Recover Teichmüller's unified route from 1944, reunifying complex geometry, topology, and arithmetic within a single framework.**
 
-| 论文 | 年份 | 核心贡献 |
-|------|------|----------|
-| *Extremale quasikonforme Abbildungen* | 1939 | Teichmüller 距离、极值映射、二次微分 |
-| *Veränderliche Riemannsche Flächen* | 1944 | 标记曲面、解析族、局部变形坐标 |
+In 1944, Oswald Teichmüller published *Veränderliche Riemannsche Flächen* (Variable Riemann Surfaces), proposing a unified program for studying how Riemann surfaces vary. This program was interrupted by his death at age 30. Since then, his ideas were inherited separately by quasiconformal analysis (Ahlfors, Bers), deformation theory (Kodaira, Spencer), moduli functors (Grothendieck), and hyperbolic geometry (Fenchel, Nielsen).
 
-1944年的遗作提出了一条**被历史中断的统一路线**。此后，核心思想被分别继承：
-
-```
-        Teichmüller (1944)
-              │
-    ┌─────────┼─────────┬─────────┐
-    ↓         ↓         ↓         ↓
-  Ahlfors   Kodaira   Grothendieck  Fenchel
-  Bers      Spencer   Mumford      Nielsen
- 拟共形    变形理论    模函子      双曲几何
-```
-
-**本项目的目标：重新汇合这些分流，建立可验证的形式化核心。**
+**This project reunifies these streams into a formally verifiable system.**
 
 ---
 
-## 项目结构
+## Teichmüller's Papers
 
-```
-teichmuller-tutorial/
-├── docs/tutorial/           # 数学教程（中英文双语）
-│   ├── foundations/          # 入门：从高中数学到模空间
-│   └── advanced/            # 进阶：Lean 形式化边界
-├── lean/Teichmuller/        # Lean 4 形式化代码
-│   ├── Topology.lean        # 拓扑层
-│   ├── Complex.lean         # 复结构图册
-│   ├── Family.lean          # 解析族接口
-│   └── Modular.lean         # 模群代数
-└── scripts/                 # 构建工具
-```
+| Paper | Year | Links | Core Contributions |
+|-------|------|-------|-------------------|
+| *Extremale quasikonforme Abbildungen und quadratische Differentiale* | 1939 | [GDZ](https://gdz.sub.uni-goettingen.de/id/PPN243919689_0152) | Teichmüller distance, extremal quasiconformal mappings, quadratic differentials |
+| *Veränderliche Riemannsche Flächen* | 1944 | [GDZ](https://gdz.sub.uni-goettingen.de/id/PPN243919689_0174) | Marked Riemann surfaces, analytic families, local deformation coordinates |
+| *Gesammelte Abhandlungen* | 1982 | [Springer](https://link.springer.com/book/10.1007/978-3-642-46204-7) | Collected works, ed. Ahlfors & Gehring |
 
 ---
 
-## 快速开始
+## Formalization Progress
 
-### 阅读教程
+### Lean 4 Implementation (`lean/Teichmuller/`)
 
-| 文档 | 语言 | 内容 |
-|------|------|------|
-| [入门导论](docs/tutorial/foundations/foundations_intro.tex) | 中文 | 从函数到模空间的完整路线 |
-| [入门导论](docs/tutorial/foundations/foundations_intro_en.tex) | English | Foundations introduction |
-| [进一步推导](docs/tutorial/advanced/teichmuller_program.tex) | 中文 | Lean 形式化边界与代码对应 |
+| Component | File | Status | Description |
+|-----------|------|--------|-------------|
+| Topology | `Topology.lean` | ✅ Complete | Topological spaces, continuous maps, homotopy closure |
+| Complex Structure | `Complex.lean` | ✅ Complete | Charts, atlases, holomorphic transitions |
+| Analytic Families | `Family.lean` | ✅ Complete | Dependent sum total spaces, pullbacks, universal properties |
+| Modular Group | `Modular.lean` | ✅ Complete | SL₂(ℤ) matrix algebra, upper half-plane action |
+| Mathlib Bridge | `MathlibTopology.lean` | ✅ Complete | Standard Mathlib topology objects |
+| Complex Atlas | `MathlibComplex.lean` | ✅ Complete | Concrete ℂ charts with `DifferentiableOn` |
+| Fiber Bundle | `MathlibFiberBundle.lean` | ✅ Complete | Local trivializations, pullback bundles |
+| Beltrami | `MathlibBeltrami.lean` | 🔄 In Progress | Measurable coefficients, transport cocycles |
 
-### 构建 PDF
+### Current Boundaries
+
+**Proven:**
+- Marking compatibility relation is an equivalence relation
+- Teichmüller space as quotient is well-defined
+- SL₂(ℤ) determinant-one multiplication with associativity
+- Upper half-plane fundamental domain representative theorem
+- j-type weight-zero quotient function construction
+
+**In Progress:**
+- Measurable Riemann mapping theorem (Beltrami equation existence/uniqueness)
+- Complete chart-level cocycle compatibility
+- Global universal family existence
+
+---
+
+## Tutorials
+
+| Document | Language | Content |
+|----------|----------|---------|
+| [Foundations](docs/tutorial/foundations/foundations_intro.tex) | 中文 | From high school math to moduli spaces |
+| [Foundations](docs/tutorial/foundations/foundations_intro_en.tex) | English | Complete introductory route |
+| [Advanced](docs/tutorial/advanced/teichmuller_program.tex) | 中文 | Lean formalization boundaries |
+| [Advanced](docs/tutorial/advanced/teichmuller_program_en.tex) | English | Code correspondence |
+
+---
+
+## Build
 
 ```bash
-# 本地构建
+# Install dependencies (requires TeX Live with XeLaTeX)
 ./scripts/build.sh
 
-# 或手动构建
+# Or manually
 latexmk -xelatex -outdir=build docs/tutorial/foundations/foundations_intro.tex
-```
 
-### Lean 代码
-
-```bash
+# Lean 4
 lake build
 ```
 
 ---
 
-## 研究阶段
+## Research Roadmap
 
-| 阶段 | 目标 | 状态 |
-|------|------|------|
-| P₀ | 四条基础轴统一符号与定义 | ✅ |
-| P₁ | 拓扑、同伦与标记关系 | ✅ |
-| P₁.₅ | Mathlib 实体层对接 | ✅ |
-| P₂ | 解析族结构接口 | ✅ |
-| P₃ | Beltrami 方程与拟共形变形 | 🔄 |
-| P₄ | 模函数与周期映射 | 🔄 |
-| P₅ | 万有族构造 | ⏳ |
+```
+P₀  Unified symbols         ✅
+P₁  Topology & markings      ✅
+P₁.₅ Mathlib integration     ✅
+P₂  Analytic families        ✅
+P₃  Beltrami equations       🔄
+P₄  Modular functions        🔄
+P₅  Universal family         ⏳
+```
 
----
+### Next Steps
 
-## 未来路线图
-
-### 近期（1-2年）
-- 形式化可测 Riemann 映射定理
-- 完成 Beltrami 方程解的存在唯一性
-- 连接低亏格可计算模型
-
-### 中期（3-5年）
-- 构造 Teichmüller 空间的万有性质
-- 比较 turning-piece / Fenchel-Nielsen / 周期坐标
-- 桥接高阶 Teichmüller 与几何 Langlands
-
-### 长期愿景
-**恢复哥廷根学派在复几何与模空间领域的领导地位。**
+1. **Beltrami Layer Completion**: Finish measurable differential cocycle, prove existence/uniqueness via contraction mapping
+2. **Modular Function Bridge**: Connect j-invariant to Teichmüller space via period mapping
+3. **Universal Family**: Construct classification functor for arbitrary marked analytic families
 
 ---
 
-## 参考文献
+## References
 
-1. Teichmüller, O. (1939). *Extremale quasikonforme Abbildungen und quadratische Differentiale*
-2. Teichmüller, O. (1944). *Veränderliche Riemannsche Flächen*
-3. Ahlfors, L. V. (1966). *Lectures on quasiconformal mappings*
-4. Hubbard, J. H. (2006). *Teichmüller theory and applications*
+- Teichmüller, O. (1944). *Veränderliche Riemannsche Flächen*. Deutsche Mathematik, 7, 344-359. [GDZ](https://gdz.sub.uni-goettingen.de/id/PPN243919689_0174)
+- Ahlfors, L. V. (1966). *Lectures on Quasiconformal Mappings*. Van Nostrand.
+- Bers, L. (1970). *Thom's Theorem and Riemann Surfaces*. Lecture Notes in Math.
+- Hubbard, J. H. (2006). *Teichmüller Theory and Applications*. Matrix Editions.
+- Schappacher, N. & Scholz, E. (1992). *Oswald Teichmüller – Leben und Werk*. Jahresber. DMV. [Online](http://dml.math.uni-bielefeld.de/JB_DMV/)
 
 ---
 
-## 贡献
-
-欢迎贡献代码、文档或提出改进建议！
+## Contributing
 
 ```bash
 git clone https://github.com/alexyyyander/teichmuller-tutorial.git
 cd teichmuller-tutorial
-./scripts/build.sh  # 验证构建
+./scripts/build.sh
 ```
 
 ---
 
-*纪念 Oswald Teichmüller (1913–1943)*  
-*愿数学的统一之光照亮未来*
+*In memory of Oswald Teichmüller (1913–1943)*
