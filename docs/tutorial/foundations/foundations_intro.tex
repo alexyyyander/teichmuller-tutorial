@@ -25,36 +25,9 @@
   }
 }
 
-\IfFontExistsTF{texgyrepagella-regular.otf}{
-  \setmainfont{texgyrepagella}[
-    UprightFont=*-regular.otf,
-    BoldFont=*-bold.otf,
-    ItalicFont=*-italic.otf,
-    BoldItalicFont=*-bolditalic.otf
-  ]
-}{
-  \setmainfont{Latin Modern Roman}
-}
-\IfFontExistsTF{texgyreheros-regular.otf}{
-  \setsansfont{texgyreheros}[
-    UprightFont=*-regular.otf,
-    BoldFont=*-bold.otf,
-    ItalicFont=*-italic.otf,
-    BoldItalicFont=*-bolditalic.otf
-  ]
-}{
-  \setsansfont{Latin Modern Sans}
-}
-\IfFontExistsTF{texgyrecursor-regular.otf}{
-  \setmonofont{texgyrecursor}[
-    UprightFont=*-regular.otf,
-    BoldFont=*-bold.otf,
-    ItalicFont=*-italic.otf,
-    BoldItalicFont=*-bolditalic.otf
-  ]
-}{
-  \setmonofont{Latin Modern Mono}
-}
+\setmainfont{Latin Modern Roman}
+\setsansfont{Latin Modern Sans}
+\setmonofont{Latin Modern Mono}
 
 \usepackage{geometry}
 \usepackage{amsmath,amssymb,amsthm,mathtools}
