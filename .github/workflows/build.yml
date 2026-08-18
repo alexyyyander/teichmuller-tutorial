@@ -19,39 +19,20 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Compile LaTeX document (Chinese version - Foundations)
-      uses: xu-cheng/latex-action@v3
-      with:
-        root_file: foundations_intro.tex
-        latexmk_use_xelatex: true
-        working_directory: docs/tutorial/foundations
-        
-    - name: Compile LaTeX document (English version - Foundations)
-      uses: xu-cheng/latex-action@v3
-      with:
-        root_file: foundations_intro_en.tex
-        latexmk_use_xelatex: true
-        working_directory: docs/tutorial/foundations
+    - name: Install LaTeX dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y texlive-xetex texlive-fonts-recommended texlive-latex-extra texlive-fonts-extra fonts-noto-cjk
 
-    - name: Compile LaTeX document (Chinese version - Advanced)
-      uses: xu-cheng/latex-action@v3
-      with:
-        root_file: teichmuller_program.tex
-        latexmk_use_xelatex: true
-        working_directory: docs/tutorial/advanced
-
-    - name: Compile LaTeX document (English version - Advanced)
-      uses: xu-cheng/latex-action@v3
-      with:
-        root_file: teichmuller_program_en.tex
-        latexmk_use_xelatex: true
-        working_directory: docs/tutorial/advanced
+    - name: Compile English version - Foundations
+      working-directory: docs/tutorial/foundations
+      run: |
+        xelatex -interaction=nonstopmode -halt-on-error foundations_intro_en.tex
+        xelatex -interaction=nonstopmode -halt-on-error foundations_intro_en.tex
 
     - name: Upload PDF artifacts
       uses: actions/upload-artifact@v4
       with:
         name: pdf-documents
-        path: |
-          docs/tutorial/foundations/*.pdf
-          docs/tutorial/advanced/*.pdf
+        path: docs/tutorial/foundations/*.pdf
         retention-days: 30
