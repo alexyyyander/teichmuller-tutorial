@@ -24,15 +24,15 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y texlive-xetex texlive-fonts-recommended texlive-latex-extra texlive-fonts-extra fonts-noto-cjk
 
-    - name: Compile English version - Foundations
-      working-directory: docs/tutorial/foundations
+    - name: Compile English version - Advanced
+      working-directory: docs/tutorial/advanced
       run: |
-        xelatex -interaction=nonstopmode -halt-on-error foundations_intro_en.tex
-        xelatex -interaction=nonstopmode -halt-on-error foundations_intro_en.tex
+        xelatex -interaction=nonstopmode -halt-on-error teichmuller_program_en.tex
+        xelatex -interaction=nonstopmode -halt-on-error teichmuller_program_en.tex
 
     - name: Upload PDF artifacts
       uses: actions/upload-artifact@v4
       with:
         name: pdf-documents
-        path: docs/tutorial/foundations/*.pdf
+        path: docs/tutorial/advanced/*.pdf
         retention-days: 30
