@@ -1,8 +1,20 @@
 \documentclass[UTF8,fontset=none,a4paper,11pt]{ctexart}
 
-\setCJKmainfont[Path=/System/Library/Fonts/Supplemental/]{Songti.ttc}
-\setCJKsansfont[Path=/System/Library/Fonts/Supplemental/]{Songti.ttc}
-\setCJKmonofont[Path=/System/Library/Fonts/Supplemental/]{Songti.ttc}
+\IfFontExistsTF{Noto Serif CJK SC}{
+  \setCJKmainfont{Noto Serif CJK SC}
+  \setCJKsansfont{Noto Sans CJK SC}
+  \setCJKmonofont{Noto Sans CJK SC}
+}{
+  \IfFontExistsTF{Songti SC}{
+    \setCJKmainfont{Songti SC}
+    \setCJKsansfont{Songti SC}
+    \setCJKmonofont{Songti SC}
+  }{
+    \setCJKmainfont{FandolSong}
+    \setCJKsansfont{FandolHei}
+    \setCJKmonofont{FandolKai}
+  }
+}
 
 \usepackage{geometry}
 \usepackage{amsmath,amssymb,amsthm,mathtools}
