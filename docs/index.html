@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Teichmüller Theory Tutorial</title>
+  <style>
+    :root {
+      --text: #222222;
+      --muted: #666666;
+      --link: #1772d0;
+      --rule: #dddddd;
+      --soft: #f3f3f3;
+      --page: 920px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #ffffff;
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 16px;
+      line-height: 1.55;
+    }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { color: #f09228; }
+    .page {
+      max-width: var(--page);
+      margin: 0 auto;
+      padding: 42px 22px 56px;
+    }
+    h1 {
+      margin: 0 0 18px;
+      font-size: 2rem;
+      font-weight: 400;
+    }
+    h1 span { color: var(--muted); font-size: 1.2rem; }
+    h2 {
+      border-bottom: 1px solid var(--rule);
+      margin: 34px 0 15px;
+      padding-bottom: 5px;
+      font-size: 1.25rem;
+      font-weight: 400;
+    }
+    .card {
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      padding: 20px;
+      margin: 16px 0;
+      background: var(--soft);
+    }
+    .card h3 { margin: 0 0 8px; font-size: 1.1rem; }
+    .card p { margin: 0 0 8px; }
+    .card .meta { color: var(--muted); font-size: 0.9rem; }
+    .links { margin-top: 12px; }
+    .links a {
+      display: inline-block;
+      margin-right: 12px;
+      padding: 6px 14px;
+      border: 1px solid var(--link);
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    .links a:hover { background: var(--link); color: #fff; }
+    .back { margin-top: 40px; font-size: 0.9rem; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <h1>Über Teichmüller's Einheitliches Programm <span>Tutorial</span></h1>
+
+    <p>
+      继续 Oswald Teichmüller 的未竟事业：将可变黎曼曲面理论统一为可验证的形式化系统。
+    </p>
+
+    <h2>文档下载</h2>
+
+    <div class="card">
+      <h3>📚 基础入门：从集合到模空间</h3>
+      <p class="meta">Foundations Introduction · 中文版</p>
+      <p>
+        从集合、函数、群出发，经复分析、拓扑，到黎曼曲面与模空间的完整学习路径。
+        适合初学者，无需 Teichmüller 理论先修知识。
+      </p>
+      <div class="links">
+        <a href="foundations_intro.pdf">下载 PDF</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🎓 进阶推导：Teichmüller 统一纲领</h3>
+      <p class="meta">Teichmüller Program · 中文版</p>
+      <p>
+        Teichmüller 原始纲领的形式化边界、Lean 4 实现进展与研究前沿。
+        探讨拟共形分析、变形理论与模函子的统一框架。
+      </p>
+      <div class="links">
+        <a href="teichmuller_program.pdf">下载 PDF</a>
+      </div>
+    </div>
+
+    <h2>关于项目</h2>
+    <p>
+      本项目是 Teichmüller 理论的综合教程与形式化验证仓库，目标是恢复 1944 年提出的统一路线，
+      让复几何、拓扑与算术在同一个框架下重新汇合。支持多 agent 协作探索，通过严格审查机制保证质量。
+    </p>
+
+    <p class="back">
+      <a href="https://github.com/alexyyyander/teichmuller-tutorial">GitHub 仓库</a> ·
+      <a href="https://alexyyyander.github.io">返回主页</a>
+    </p>
+  </main>
+</body>
+</html>
