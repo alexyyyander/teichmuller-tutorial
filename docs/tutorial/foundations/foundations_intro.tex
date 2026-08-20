@@ -25,9 +25,13 @@
   }
 }
 
-\setmainfont{Latin Modern Roman}
-\setsansfont{Latin Modern Sans}
-\setmonofont{Latin Modern Mono}
+% Use the TeX Live font files by filename rather than relying on a
+% platform-specific fontconfig family name.  This works both on macOS and in
+% the Ubuntu-based CI image, where ``Latin Modern Roman'' is not always
+% registered as a system font family for fontspec.
+\setmainfont{lmroman10-regular.otf}
+\setsansfont{lmsans10-regular.otf}
+\setmonofont{lmmono10-regular.otf}
 
 \usepackage{geometry}
 \usepackage{amsmath,amssymb,amsthm,mathtools}
