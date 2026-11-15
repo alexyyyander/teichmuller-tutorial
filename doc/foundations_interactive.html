@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>作用、映射与拟共形结构：三个可计算模型</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5c6675;
+      --line: #cbd2da;
+      --paper: #ffffff;
+      --wash: #f5f6f7;
+      --blue: #244a73;
+      --blue-soft: #e8eef4;
+      --green: #2c6656;
+      --orange: #8b5a28;
+      --red: #8d3b3b;
+      --purple: #604c7a;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--wash);
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      line-height: 1.6;
+    }
+
+    main {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 30px 18px 68px;
+    }
+
+    .hero {
+      padding: 26px 30px 24px;
+      border-top: 4px solid var(--blue);
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .eyebrow {
+      margin: 0 0 5px;
+      color: var(--blue);
+      font-family: Georgia, "Songti SC", serif;
+      font-size: .9rem;
+      font-style: italic;
+    }
+
+    h1, h2, h3 { line-height: 1.22; }
+    h1 { margin: 0; font-family: Georgia, "Songti SC", serif; font-size: clamp(1.85rem, 4vw, 3.15rem); letter-spacing: -.035em; }
+    h2 { margin: 0; font-size: clamp(1.28rem, 2.3vw, 1.85rem); }
+    h3 { margin: 0; font-size: 1.05rem; }
+
+    .hero p {
+      max-width: 840px;
+      margin: 13px 0 0;
+      color: #475569;
+      font-size: 1.04rem;
+    }
+
+    .translation {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 22px;
+    }
+
+    .translation-item {
+      min-height: 86px;
+      padding: 11px 15px;
+      border-left: 3px solid var(--line);
+      background: #fafafa;
+    }
+
+    .translation-item strong { display: block; margin-bottom: 3px; }
+    .translation-item span { color: var(--muted); font-size: .9rem; }
+
+    .nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 9px;
+      margin: 19px 0 17px;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      padding: 8px 13px;
+      color: var(--ink);
+      background: var(--paper);
+      font: inherit;
+      font-size: .91rem;
+      cursor: pointer;
+      transition: border-color .15s ease, background .15s ease;
+    }
+
+    button:hover, button:focus-visible {
+      border-color: var(--blue);
+      background: var(--blue-soft);
+      outline: none;
+    }
+
+    .workspace { display: grid; gap: 18px; }
+
+    .panel {
+      padding: 22px 24px 24px;
+      border: 1px solid var(--line);
+      border-radius: 3px;
+      background: var(--paper);
+      scroll-margin-top: 15px;
+    }
+
+    .lab-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .lab-head p { margin: 6px 0 0; color: var(--muted); }
+
+    .tag {
+      flex: 0 0 auto;
+      color: var(--blue);
+      border-bottom: 1px solid var(--blue);
+      font-family: Georgia, "Songti SC", serif;
+      font-size: .84rem;
+      font-style: italic;
+      white-space: nowrap;
+    }
+
+    .lab-body {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(270px, .75fr);
+      gap: 18px;
+      align-items: start;
+    }
+
+    .visual-wrap { min-width: 0; }
+
+    svg.visual {
+      display: block;
+      width: 100%;
+      height: auto;
+      min-height: 288px;
+      border: 1px solid var(--line);
+      border-radius: 2px;
+      background: #fff;
+    }
+
+    .caption {
+      margin: 8px 2px 0;
+      color: var(--muted);
+      font-size: .87rem;
+    }
+
+    .controls {
+      display: grid;
+      gap: 12px;
+    }
+
+    .control {
+      padding: 12px 13px;
+      border: 1px solid #e1e8f0;
+      border-radius: 2px;
+      background: #fff;
+    }
+
+    .control label, .control .label-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 6px;
+      font-size: .92rem;
+      font-weight: 650;
+    }
+
+    .control output {
+      color: var(--blue);
+      font-variant-numeric: tabular-nums;
+      font-weight: 750;
+    }
+
+    .formula {
+      margin: 0;
+      padding: 12px 13px 13px;
+      border-top: 1px solid var(--purple);
+      border-bottom: 1px solid var(--purple);
+      color: #3b276e;
+      background: #fbfafc;
+      font-family: Georgia, "Songti SC", serif;
+      font-size: .92rem;
+      overflow-wrap: anywhere;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .metric {
+      padding: 9px 10px;
+      border: 1px solid #e2e8f0;
+      border-radius: 2px;
+      background: #fff;
+    }
+
+    .metric small { display: block; color: var(--muted); font-size: .75rem; }
+    .metric strong { display: block; margin-top: 2px; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+
+    .note {
+      margin: 14px 0 0;
+      padding: 11px 13px;
+      border-left: 3px solid #b9c1ca;
+      color: #475569;
+      background: #fafafa;
+      font-size: .88rem;
+    }
+
+    .note strong { color: var(--ink); }
+
+    .footer-box {
+      margin-top: 18px;
+      padding: 18px 20px;
+      border-top: 2px solid var(--blue);
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+    }
+
+    .footer-box p { margin: 7px 0 0; color: #475569; }
+    .footer-box code { padding: 2px 5px; background: #e2e8f0; }
+
+    .formal-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0;
+      margin: 13px 0 17px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: #fcfcfc;
+    }
+
+    .formal-cell {
+      min-height: 82px;
+      padding: 10px 12px;
+      border-right: 1px solid var(--line);
+      font-size: .85rem;
+    }
+
+    .formal-cell:last-child { border-right: 0; }
+    .formal-cell strong { display: block; margin-bottom: 4px; color: var(--blue); font-family: Georgia, "Songti SC", serif; }
+    .math { font-family: Georgia, "Songti SC", serif; font-style: italic; }
+
+    .statement {
+      margin: 13px 0 0;
+      padding: 10px 12px;
+      border-left: 3px solid var(--blue);
+      background: #f8fafc;
+      font-size: .87rem;
+    }
+
+    .statement .label {
+      display: inline-block;
+      margin-right: 6px;
+      color: var(--blue);
+      font-family: Georgia, "Songti SC", serif;
+      font-weight: 700;
+    }
+
+    .statement.proposition { border-left-color: var(--purple); }
+    .statement.proposition .label { color: var(--purple); }
+    .statement.proof { border-left-color: #6b7280; }
+    .statement.proof .label { color: #4b5563; }
+    .scope { color: var(--muted); font-size: .85rem; }
+
+    @media (max-width: 780px) {
+      main { padding: 17px 12px 46px; }
+      .hero { padding: 22px 18px 19px; }
+      .translation { grid-template-columns: 1fr; }
+      .panel { padding: 16px; }
+      .lab-head { display: block; }
+      .tag { display: inline-block; margin-top: 10px; }
+      .lab-body { grid-template-columns: 1fr; }
+      svg.visual { min-height: 220px; }
+      .formal-grid { grid-template-columns: 1fr 1fr; }
+      .formal-cell:nth-child(2) { border-right: 0; }
+      .formal-cell:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      button { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="hero" aria-labelledby="page-title">
+      <p class="eyebrow">Teichmüller foundations · computational diagrams</p>
+      <h1 id="page-title">作用、映射与拟共形结构：三个可计算模型</h1>
+      <p>
+        本页不设置动画，而是给出三个固定的、可以逐行手算核验的代表模型：先明确对象、定义域与映射，再计算轨道、复合差或微分不变量，
+        最后说明这个具体例子与一般理论的边界。
+      </p>
+      <div class="translation" aria-label="数学模型的阅读顺序">
+        <div class="translation-item">
+          <strong>模型数据</strong>
+          <span>写出 G↷X、f:X→Y 或 f(z)=az+b z̄，固定具体对象与假设。</span>
+        </div>
+        <div class="translation-item">
+          <strong>可验证量</strong>
+          <span>在一个具体输入上计算 Orb、Stab、复合差、Jacobian、K。</span>
+        </div>
+        <div class="translation-item">
+          <strong>结论边界</strong>
+          <span>区分算例中的等式、一般命题，以及尚未涉及的全局定理。</span>
+        </div>
+      </div>
+    </section>
+
+    <nav class="nav" aria-label="章节导航">
+      <button type="button" data-target="orbit-lab">§ 1 有限群作用</button>
+      <button type="button" data-target="map-lab">§ 2 复映射复合</button>
+      <button type="button" data-target="teich-lab">§ 3 拟共形线性模型</button>
+    </nav>
+
+    <section class="workspace">
+      <article class="panel" id="orbit-lab" aria-labelledby="orbit-title">
+        <div class="lab-head">
+          <div>
+            <h2 id="orbit-title">1. 有限群作用：轨道—稳定子分解</h2>
+            <p>取最小的非平凡旋转例子：四阶循环群作用在复平面上，选定点为 <span class="math">x=1</span>。</p>
+          </div>
+          <span class="tag">模型 A · 有限群</span>
+        </div>
+        <div class="formal-grid">
+          <div class="formal-cell"><strong>作用对象</strong><span class="math">G=C<sub>4</sub>={e,r,r²,r³}</span>，<span class="math">r⁴=e</span></div>
+          <div class="formal-cell"><strong>作用空间</strong><span class="math">X=ℂ</span>，<span class="math">r·z=iz</span></div>
+          <div class="formal-cell"><strong>轨道</strong><span class="math">Orb<sub>G</sub>(x)={g·x∣g∈G}</span></div>
+          <div class="formal-cell"><strong>稳定子</strong><span class="math">Stab<sub>G</sub>(x)={g∈G∣g·x=x}</span></div>
+        </div>
+        <div class="lab-body">
+          <div class="visual-wrap">
+            <svg class="visual" id="orbitSvg" viewBox="0 0 640 360" role="img" aria-label="循环群旋转产生的轨道图"></svg>
+            <p class="caption">红点为 <span class="math">x=1</span>，蓝点为 <span class="math">{1,i,−1,−i}</span>；中心的灰点同时显示固定点 <span class="math">0</span> 的另一种轨道类型。</p>
+          </div>
+          <div class="controls">
+            <div class="control">
+              <span class="label-row"><span>具体算例</span><output>n=4，x=1</output></span>
+              <div class="math">r·1=i，r²·1=−1，r³·1=−i</div>
+            </div>
+            <p class="formula"><span class="math">|C<sub>4</sub>| = |Orb<sub>G</sub>(1)| · |Stab<sub>G</sub>(1)| = 4·1</span></p>
+            <div class="metrics" aria-live="polite">
+              <div class="metric"><small>|G|</small><strong id="orbitOrder">4</strong></div>
+              <div class="metric"><small>|Orb<sub>G</sub>(1)|</small><strong id="orbitSize">4</strong></div>
+              <div class="metric"><small>|Stab<sub>G</sub>(1)|</small><strong id="stabilizerSize">1</strong></div>
+              <div class="metric"><small>乘积检查</small><strong id="orbitCheck">4 = 4 × 1</strong></div>
+            </div>
+            <div class="statement"><span class="label">定义</span>轨道是评价映射 <span class="math">G→X</span>，<span class="math">g↦g·x</span> 的像；稳定子是该映射在 <span class="math">x</span> 处取值不变的群元素集合。</div>
+            <div class="statement proposition"><span class="label">命题</span>当 <span class="math">G</span> 有限时，<span class="math">G/Stab<sub>G</sub>(x)→Orb<sub>G</sub>(x)</span>，<span class="math">g Stab↦g·x</span> 是良定义双射，因此得到上面的乘法公式。</div>
+            <div class="statement proof"><span class="label">证明要点</span><span class="math">g<sub>1</sub>·x=g<sub>2</sub>·x</span> 当且仅当 <span class="math">g<sub>2</sub><sup>−1</sup>g<sub>1</sub>∈Stab<sub>G</sub>(x)</span>；所以两个群元素给出同一点，恰好对应同一个左陪集。</div>
+            <div class="scope"><strong>范围：</strong>这是一个 <span class="math">C<sub>4</sub></span> 算例；它说明定理如何计算，不代表任意群作用都只有四个轨道点。</div>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel" id="map-lab" aria-labelledby="map-title">
+        <div class="lab-head">
+          <div>
+            <h2 id="map-title">2. 复映射：复合顺序与不交换性</h2>
+            <p>固定一个输入 <span class="math">z=1+i</span>，取四分之一转与单位平移，逐步写出两条复合路径。</p>
+          </div>
+          <span class="tag">模型 B · 全纯自同构</span>
+        </div>
+        <div class="formal-grid">
+          <div class="formal-cell"><strong>定义域/陪域</strong><span class="math">X=Y=ℂ</span></div>
+          <div class="formal-cell"><strong>旋转</strong><span class="math">f(z)=iz</span>，即 <span class="math">θ=π/2</span></div>
+          <div class="formal-cell"><strong>平移</strong><span class="math">g(z)=z+1</span></div>
+          <div class="formal-cell"><strong>输入</strong><span class="math">z=1+i</span>，不改变参数</div>
+        </div>
+        <div class="lab-body">
+          <div class="visual-wrap">
+            <svg class="visual" id="mapSvg" viewBox="0 0 640 360" role="img" aria-label="复平面上的两个复合映射结果"></svg>
+            <p class="caption">两条箭头链分别展示 <span class="math">z→f(z)→g(f(z))</span> 与 <span class="math">z→g(z)→f(g(z))</span>，每一步都可直接核算。</p>
+          </div>
+          <div class="controls">
+            <div class="control">
+              <span class="label-row"><span>具体算例</span><output>θ=π/2，z=1+i</output></span>
+              <div class="math">f(z)=−1+i，g(z)=2+i</div>
+            </div>
+            <p class="formula"><span class="math">g(f(z))=i</span>，<span class="math">f(g(z))=−1+2i</span><br><span class="math">f(g(z))−g(f(z))=−1+i</span>，模为 <span class="math">√2</span></p>
+            <div class="metrics" aria-live="polite">
+              <div class="metric"><small>g(f(z))</small><strong id="gfPoint">i</strong></div>
+              <div class="metric"><small>f(g(z))</small><strong id="fgPoint">−1+2i</strong></div>
+              <div class="metric"><small>差向量模</small><strong id="mapError">√2</strong></div>
+              <div class="metric"><small>复合关系</small><strong id="mapRelation">不交换</strong></div>
+            </div>
+            <div class="statement"><span class="label">计算</span><span class="math">f<sub>θ</sub>(g(z))=e<sup>iθ</sup>(z+1)</span>，而 <span class="math">g(f<sub>θ</sub>(z))=e<sup>iθ</sup>z+1</span>；差值与输入 <span class="math">z</span> 无关。</div>
+            <div class="statement proposition"><span class="label">命题</span>本算例中 <span class="math">g∘f≠f∘g</span>；这正是“复合顺序属于结构数据”的具体证据。</div>
+            <div class="statement proof"><span class="label">计算</span><span class="math">f(g(1+i))=i(2+i)=−1+2i</span>，而 <span class="math">g(f(1+i))=g(−1+i)=i</span>，两者不同。</div>
+            <div class="scope"><strong>范围：</strong>这两个映射都是 <span class="math">ℂ</span> 的全纯自同构；图形只验证代数关系，不替代全纯性和自同构的正式证明。</div>
+          </div>
+        </div>
+      </article>
+
+      <article class="panel" id="teich-lab" aria-labelledby="teich-title">
+        <div class="lab-head">
+          <div>
+            <h2 id="teich-title">3. 拟共形变形：Beltrami 系数的实一维截面</h2>
+            <p>固定 <span class="math">μ=1/2</span>，把单位圆和方格送入一个可直接写出矩阵的仿射拟共形映射。</p>
+          </div>
+          <span class="tag">模型 C · 仿射拟共形</span>
+        </div>
+        <div class="formal-grid">
+          <div class="formal-cell"><strong>模型</strong><span class="math">f(z)=z+½z̄</span>，即 <span class="math">μ=½</span></div>
+          <div class="formal-cell"><strong>Wirtinger 导数</strong><span class="math">f<sub>z</sub>=1</span>，<span class="math">f<sub>z̄</sub>=μ</span></div>
+          <div class="formal-cell"><strong>Jacobian</strong><span class="math">J<sub>f</sub>=|f<sub>z</sub>|²−|f<sub>z̄</sub>|²=1−k²&gt;0</span></div>
+          <div class="formal-cell"><strong>畸变</strong><span class="math">K=(1+½)/(1−½)=3</span>，是主伸缩比</div>
+        </div>
+        <div class="lab-body">
+          <div class="visual-wrap">
+            <svg class="visual" id="teichSvg" viewBox="0 0 640 360" role="img" aria-label="拟共形线性模型中的网格变形"></svg>
+            <p class="caption">灰色虚线是原坐标；蓝、红线是 <span class="math">Df=diag(3/2,1/2)</span> 作用后的像。单位圆变为半轴 <span class="math">3/2</span> 与 <span class="math">1/2</span> 的椭圆。</p>
+          </div>
+          <div class="controls">
+            <div class="control">
+              <span class="label-row"><span>具体算例</span><output>μ=k=1/2</output></span>
+              <div class="math">f(x+iy)=3x/2+i·y/2</div>
+            </div>
+            <p class="formula"><span class="math">Df=diag(3/2,1/2)</span>，<span class="math">J<sub>f</sub>=3/4</span>，<span class="math">K=3</span><br><span class="math">d<sub>model</sub>=½ log 3</span></p>
+            <div class="metrics" aria-live="polite">
+              <div class="metric"><small>主伸缩 λ<sub>1</sub></small><strong id="horizontalScale">1.35</strong></div>
+              <div class="metric"><small>主伸缩 λ<sub>2</sub></small><strong id="verticalScale">0.65</strong></div>
+              <div class="metric"><small>Jacobian J<sub>f</sub></small><strong id="jacobian">0.75</strong></div>
+              <div class="metric"><small>畸变常数 K</small><strong id="distortionK">3</strong></div>
+              <div class="metric"><small>模型距离 d<sub>model</sub></small><strong id="teichDistance">½ log 3</strong></div>
+            </div>
+            <div class="statement"><span class="label">定义</span>在一般情形中，<span class="math">μ=f<sub>z̄</sub>/f<sub>z</sub></span>（几乎处处定义）控制共形偏离；本页只取常数且为实数的 <span class="math">μ=k</span>。</div>
+            <div class="statement proposition"><span class="label">命题</span>本算例中 <span class="math">J<sub>f</sub>=3/4&gt;0</span>，因此保持定向；两个主伸缩因子的比为 <span class="math">K=3</span>。</div>
+            <div class="statement proof"><span class="label">计算</span><span class="math">z=x+iy</span> 时，<span class="math">z+½z̄=3x/2+i·y/2</span>，所以 <span class="math">Df=diag(3/2,1/2)</span>。</div>
+            <div class="scope"><strong>范围：</strong>这是一个常系数、实 <span class="math">μ</span> 的仿射算例；<span class="math">d<sub>model</sub></span> 不等同于完整 Teichmüller 空间的全局距离，也不证明极值性。</div>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <section class="footer-box" aria-labelledby="reading-title">
+      <h3 id="reading-title">从图回到理论：定义 → 计算 → 命题 → 边界</h3>
+      <p>
+        三个模型依次对应代数中的商集、复分析中的自同构复合，以及拟共形理论中的局部微分数据。
+        它们展示的是“可计算的截面”：群作用、全纯映射和 Beltrami 系数的正式定义仍需在正文中学习；
+        更不能由这些有限维图像直接推出模空间、解析族或 Teichmüller 极值定理。
+      </p>
+      <p><code>离线页面</code> 不依赖网络、MathJax 或外部图片；可直接用浏览器打开，也可作为 PDF 入门章节的计算附录。</p>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const $ = (id) => document.getElementById(id);
+
+    function svgElement(tag, attributes) {
+      const node = document.createElementNS(SVG_NS, tag);
+      Object.entries(attributes || {}).forEach(([key, value]) => {
+        node.setAttribute(key, String(value));
+      });
+      return node;
+    }
+
+    function addText(parent, x, y, value, attributes) {
+      const node = svgElement("text", Object.assign({ x: x, y: y }, attributes || {}));
+      node.textContent = value;
+      parent.appendChild(node);
+      return node;
+    }
+
+    function addLine(parent, x1, y1, x2, y2, attributes) {
+      const node = svgElement("line", Object.assign({ x1: x1, y1: y1, x2: x2, y2: y2 }, attributes || {}));
+      parent.appendChild(node);
+      return node;
+    }
+
+    function addCircle(parent, cx, cy, r, attributes) {
+      const node = svgElement("circle", Object.assign({ cx: cx, cy: cy, r: r }, attributes || {}));
+      parent.appendChild(node);
+      return node;
+    }
+
+    function clearSvg(svg) {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+    }
+
+    function formatNumber(value, digits) {
+      return Number(value).toFixed(digits).replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+    }
+
+    function drawArrow(parent, x1, y1, x2, y2, color, width) {
+      addLine(parent, x1, y1, x2, y2, {
+        stroke: color,
+        "stroke-width": width || 2.2,
+        "stroke-linecap": "round",
+        "marker-end": "url(#arrowhead)"
+      });
+    }
+
+    function addArrowMarker(svg, id, color) {
+      const defs = svgElement("defs", {});
+      const marker = svgElement("marker", {
+        id: id,
+        markerWidth: 8,
+        markerHeight: 8,
+        refX: 6,
+        refY: 3,
+        orient: "auto",
+        markerUnits: "strokeWidth"
+      });
+      marker.appendChild(svgElement("path", { d: "M0,0 L0,6 L7,3 z", fill: color }));
+      defs.appendChild(marker);
+      svg.appendChild(defs);
+    }
+
+    function drawOrbit() {
+      const svg = $("orbitSvg");
+      clearSvg(svg);
+      addArrowMarker(svg, "arrowhead", "#64748b");
+      const n = 4;
+      const angle = 0;
+      const cx = 195;
+      const cy = 182;
+      const radius = 113;
+
+      svg.appendChild(svgElement("rect", { x: 0, y: 0, width: 640, height: 360, fill: "#fbfdff" }));
+      addCircle(svg, cx, cy, radius, { fill: "none", stroke: "#cbd5e1", "stroke-width": 1.5 });
+      addCircle(svg, cx, cy, 4, { fill: "#475569" });
+      addText(svg, cx + 9, cy - 8, "中心", { fill: "#64748b", "font-size": 13 });
+      addText(svg, cx, 44, "有限群作用  Cₙ ↷ ℂ", { fill: "#1e293b", "font-size": 16, "font-weight": 700, "text-anchor": "middle" });
+
+      const polygonPoints = [];
+      for (let j = 0; j < n; j += 1) {
+        const a = angle + j * 2 * Math.PI / n;
+        polygonPoints.push((cx + radius * Math.cos(a)).toFixed(2) + "," + (cy + radius * Math.sin(a)).toFixed(2));
+      }
+      svg.appendChild(svgElement("polygon", {
+        points: polygonPoints.join(" "),
+        fill: "rgba(37,99,235,.05)",
+        stroke: "#93c5fd",
+        "stroke-width": 1.5
+      }));
+
+      const labels = ["1=x", "i", "−1", "−i"];
+      const points = [];
+      for (let j = 0; j < n; j += 1) {
+        const a = angle + j * 2 * Math.PI / n;
+        const x = cx + radius * Math.cos(a);
+        const y = cy + radius * Math.sin(a);
+        points.push({ x: x, y: y });
+        const isFirst = j === 0;
+        addCircle(svg, x, y, isFirst ? 9 : 7, {
+          fill: isFirst ? "#8d3b3b" : "#244a73",
+          stroke: "#fff",
+          "stroke-width": 2.5
+        });
+        addText(svg, x + 10, y - 9, labels[j], {
+          fill: isFirst ? "#8d3b3b" : "#244a73",
+          "font-size": 13,
+          "font-weight": isFirst ? 750 : 600
+        });
+      }
+      addCircle(svg, cx, cy, 7, { fill: "#6b7280", stroke: "#fff", "stroke-width": 2 });
+      addText(svg, cx + 12, cy + 5, "0（固定点）", { fill: "#5c6675", "font-size": 12 });
+      drawArrow(svg, points[0].x, points[0].y, points[1].x, points[1].y, "#94a3b8", 1.6);
+      addText(svg, cx, cy + radius + 45, "Orb(1)={1,i,−1,−i}；Orb(0)={0}", { fill: "#244a73", "font-size": 13, "text-anchor": "middle" });
+
+      addLine(svg, 392, 71, 392, 302, { stroke: "#e2e8f0", "stroke-width": 1 });
+      addText(svg, 420, 104, "结构数据", { fill: "#1e293b", "font-size": 16, "font-weight": 700 });
+      addText(svg, 420, 143, "G = Cₙ", { fill: "#5c6675", "font-size": 14 });
+      addText(svg, 485, 143, "有限循环群", { fill: "#334155", "font-size": 14 });
+      addText(svg, 420, 179, "Orb_G(x)", { fill: "#244a73", "font-size": 14, "font-weight": 700 });
+      addText(svg, 508, 179, "像 {g·x}", { fill: "#334155", "font-size": 14 });
+      addText(svg, 420, 215, "Stab_G(x)", { fill: "#8d3b3b", "font-size": 14, "font-weight": 700 });
+      addText(svg, 518, 215, "固定 x 的子群", { fill: "#334155", "font-size": 14 });
+      addText(svg, 420, 266, "G/Stab_G(1) 与 Orb_G(1) 有 4 个元素", { fill: "#475569", "font-size": 13 });
+
+      const orbitSize = 4;
+      const stabilizerSize = 1;
+      $("orbitOrder").textContent = String(n);
+      $("orbitSize").textContent = String(orbitSize);
+      $("stabilizerSize").textContent = String(stabilizerSize);
+      $("orbitCheck").textContent = n + " = " + orbitSize + " × " + stabilizerSize;
+    }
+
+    function drawPlaneGrid(svg, ox, oy, scale) {
+      for (let i = -4; i <= 4; i += 1) {
+        const x = ox + i * scale;
+        const y = oy - i * scale;
+        addLine(svg, x, 34, x, 326, { stroke: i === 0 ? "#64748b" : "#e2e8f0", "stroke-width": i === 0 ? 1.8 : 1 });
+        addLine(svg, 32, y, 375, y, { stroke: i === 0 ? "#64748b" : "#e2e8f0", "stroke-width": i === 0 ? 1.8 : 1 });
+      }
+      addText(svg, 369, oy - 9, "Re", { fill: "#64748b", "font-size": 13 });
+      addText(svg, ox + 9, 44, "Im", { fill: "#64748b", "font-size": 13 });
+    }
+
+    function pointToScreen(point, ox, oy, scale) {
+      return { x: ox + point.x * scale, y: oy - point.y * scale };
+    }
+
+    function drawMapPoint(svg, point, ox, oy, scale, color, label, radius) {
+      const screen = pointToScreen(point, ox, oy, scale);
+      addCircle(svg, screen.x, screen.y, radius || 7, { fill: color, stroke: "#fff", "stroke-width": 2.5 });
+      addText(svg, screen.x + 10, screen.y - 10, label, { fill: color, "font-size": 13, "font-weight": 750 });
+      return screen;
+    }
+
+    function rotatePoint(point, theta) {
+      return {
+        x: Math.cos(theta) * point.x - Math.sin(theta) * point.y,
+        y: Math.sin(theta) * point.x + Math.cos(theta) * point.y
+      };
+    }
+
+    function drawMap() {
+      const svg = $("mapSvg");
+      clearSvg(svg);
+      addArrowMarker(svg, "arrowhead", "#64748b");
+      const theta = Math.PI / 2;
+      const ox = 190;
+      const oy = 180;
+      const scale = 67;
+      const z = { x: 1, y: 1 };
+      const b = { x: 1, y: 0 };
+      const fz = rotatePoint(z, theta);
+      const gf = { x: fz.x + b.x, y: fz.y + b.y };
+      const zg = { x: z.x + b.x, y: z.y + b.y };
+      const fg = rotatePoint(zg, theta);
+      const difference = { x: gf.x - fg.x, y: gf.y - fg.y };
+      const error = Math.hypot(difference.x, difference.y);
+
+      svg.appendChild(svgElement("rect", { x: 0, y: 0, width: 640, height: 360, fill: "#fbfdff" }));
+      drawPlaneGrid(svg, ox, oy, scale);
+      addText(svg, 32, 27, "复平面上的复合比较  fθ∘g  与  g∘fθ", { fill: "#1e293b", "font-size": 16, "font-weight": 700 });
+      addLine(svg, 397, 50, 397, 321, { stroke: "#e2e8f0", "stroke-width": 1 });
+      const zScreen = drawMapPoint(svg, z, ox, oy, scale, "#475569", "z=1+i", 8);
+      const fzScreen = drawMapPoint(svg, fz, ox, oy, scale, "#2c6656", "f(z)=−1+i", 7);
+      const gzScreen = drawMapPoint(svg, zg, ox, oy, scale, "#8b5a28", "g(z)=2+i", 7);
+      const firstScreen = drawMapPoint(svg, gf, ox, oy, scale, "#2c6656", "g(f(z))=i", 8);
+      const secondScreen = drawMapPoint(svg, fg, ox, oy, scale, "#8b5a28", "f(g(z))=−1+2i", 8);
+      addLine(svg, firstScreen.x, firstScreen.y, secondScreen.x, secondScreen.y, { stroke: "#7c3aed", "stroke-width": 2, "stroke-dasharray": "6 5" });
+      drawArrow(svg, zScreen.x, zScreen.y, fzScreen.x, fzScreen.y, "#2c6656", 1.55);
+      drawArrow(svg, fzScreen.x, fzScreen.y, firstScreen.x, firstScreen.y, "#2c6656", 1.55);
+      drawArrow(svg, zScreen.x, zScreen.y, gzScreen.x, gzScreen.y, "#8b5a28", 1.55);
+      drawArrow(svg, gzScreen.x, gzScreen.y, secondScreen.x, secondScreen.y, "#8b5a28", 1.55);
+      addText(svg, 420, 91, "复合数据", { fill: "#1e293b", "font-size": 16, "font-weight": 700 });
+      addText(svg, 420, 130, "g∘fθ", { fill: "#2c6656", "font-size": 14, "font-weight": 700 });
+      addText(svg, 420, 154, "z  →  f(z)  →  g(f(z))", { fill: "#334155", "font-size": 13 });
+      addText(svg, 420, 197, "fθ∘g", { fill: "#8b5a28", "font-size": 14, "font-weight": 700 });
+      addText(svg, 420, 221, "z  →  g(z)  →  f(g(z))", { fill: "#334155", "font-size": 13 });
+      addText(svg, 420, 270, "虚线向量 = (fθ∘g)(z) − (g∘fθ)(z)", { fill: "#604c7a", "font-size": 13 });
+
+      $("gfPoint").textContent = "i";
+      $("fgPoint").textContent = "−1+2i";
+      $("mapError").textContent = "√2 ≈ " + formatNumber(error, 3);
+      $("mapRelation").textContent = "不交换";
+    }
+
+    function drawTeich() {
+      const svg = $("teichSvg");
+      clearSvg(svg);
+      const k = .5;
+      const sx = 1 + k;
+      const sy = 1 - k;
+      const ox = 198;
+      const oy = 181;
+      const scale = 34;
+      const map = (x, y) => ({ x: ox + scale * sx * x, y: oy - scale * sy * y });
+
+      svg.appendChild(svgElement("rect", { x: 0, y: 0, width: 640, height: 360, fill: "#fbfdff" }));
+      addText(svg, 32, 27, "仿射拟共形算例  f(z)=z+½z̄", { fill: "#1e293b", "font-size": 16, "font-weight": 700 });
+      addLine(svg, 402, 50, 402, 321, { stroke: "#e2e8f0", "stroke-width": 1 });
+
+      for (let i = -4; i <= 4; i += 1) {
+        const originalVertical = { x: ox + scale * i, y: oy - scale * -4 };
+        const originalVerticalEnd = { x: ox + scale * i, y: oy - scale * 4 };
+        addLine(svg, originalVertical.x, originalVertical.y, originalVerticalEnd.x, originalVerticalEnd.y, { stroke: "#cbd5e1", "stroke-width": 1, "stroke-dasharray": "4 4" });
+        const originalHorizontal = { x: ox + scale * -4, y: oy - scale * i };
+        const originalHorizontalEnd = { x: ox + scale * 4, y: oy - scale * i };
+        addLine(svg, originalHorizontal.x, originalHorizontal.y, originalHorizontalEnd.x, originalHorizontalEnd.y, { stroke: "#cbd5e1", "stroke-width": 1, "stroke-dasharray": "4 4" });
+
+        const verticalStart = map(i, -4);
+        const verticalEnd = map(i, 4);
+        addLine(svg, verticalStart.x, verticalStart.y, verticalEnd.x, verticalEnd.y, { stroke: "#2563eb", "stroke-width": i === 0 ? 2.4 : 1.2, opacity: .75 });
+        const horizontalStart = map(-4, i);
+        const horizontalEnd = map(4, i);
+        addLine(svg, horizontalStart.x, horizontalStart.y, horizontalEnd.x, horizontalEnd.y, { stroke: "#dc2626", "stroke-width": i === 0 ? 2.4 : 1.2, opacity: .68 });
+      }
+      addCircle(svg, ox, oy, scale, { fill: "none", stroke: "#94a3b8", "stroke-width": 1.6, "stroke-dasharray": "5 4" });
+      svg.appendChild(svgElement("ellipse", { cx: ox, cy: oy, rx: scale * sx, ry: scale * sy, fill: "rgba(124,58,237,.08)", stroke: "#7c3aed", "stroke-width": 2.2 }));
+      addText(svg, ox + scale * sx + 7, oy - 4, "横向", { fill: "#2563eb", "font-size": 12 });
+      addText(svg, ox + 7, oy - scale * sy - 8, "纵向", { fill: "#dc2626", "font-size": 12 });
+      addText(svg, ox, oy + scale * 4 + 28, "灰色虚线：原始单位圆和网格", { fill: "#64748b", "font-size": 12, "text-anchor": "middle" });
+
+      addText(svg, 430, 91, "微分数据", { fill: "#1e293b", "font-size": 16, "font-weight": 700 });
+      addText(svg, 430, 129, "Df = diag(3/2, 1/2)", { fill: "#334155", "font-size": 14, "font-weight": 700 });
+      addText(svg, 430, 163, "λ₁ = 3/2", { fill: "#244a73", "font-size": 14 });
+      addText(svg, 430, 197, "λ₂ = 1/2", { fill: "#8d3b3b", "font-size": 14 });
+      addText(svg, 430, 239, "Jf = λ₁λ₂ = " + formatNumber(sx * sy, 3), { fill: "#604c7a", "font-size": 14, "font-weight": 700 });
+      addText(svg, 430, 287, "Jf=3/4，K=3", { fill: "#475569", "font-size": 13 });
+
+      const K = sx / sy;
+      const distance = .5 * Math.log(K);
+      $("horizontalScale").textContent = formatNumber(sx, 3);
+      $("verticalScale").textContent = formatNumber(sy, 3);
+      $("jacobian").textContent = formatNumber(sx * sy, 3);
+      $("distortionK").textContent = formatNumber(K, 3);
+      $("teichDistance").textContent = "½ log 3 ≈ " + formatNumber(distance, 3);
+    }
+
+    document.querySelectorAll("[data-target]").forEach((button) => {
+      button.addEventListener("click", () => $(button.dataset.target).scrollIntoView({ behavior: "smooth", block: "start" }));
+    });
+
+    drawOrbit();
+    drawMap();
+    drawTeich();
+  </script>
+</body>
+</html>
