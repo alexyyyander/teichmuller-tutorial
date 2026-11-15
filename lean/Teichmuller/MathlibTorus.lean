@@ -962,6 +962,13 @@ theorem ComplexTorusLocalHolomorphicParameterMap.deckTransition_differentiableOn
       (F.domain ×ˢ Metric.ball (0 : ℂ) r) :=
   F.toComplexTorusHolomorphicParameterMap.deckTransition_differentiableOn m n r
 
+theorem ComplexTorusLocalHolomorphicParameterMap.deckTransition_continuousOn
+    (F : ComplexTorusLocalHolomorphicParameterMap) (m n : ℤ) (r : ℝ) :
+    ContinuousOn
+      (F.toComplexTorusHolomorphicParameterMap.deckTransition m n)
+      (F.domain ×ˢ Metric.ball (0 : ℂ) r) :=
+  F.toComplexTorusHolomorphicParameterMap.deckTransition_continuousOn m n r
+
 theorem complexTorusLattice_int_combination
     (τ : ComplexTorusParameter) {v : ℂ}
     (hv : v ∈ complexTorusLattice τ) :
@@ -977,6 +984,33 @@ theorem complexTorusLattice_int_combination
   simp only [Fin.sum_univ_two]
   rw [← hm, ← hn]
   simp [Fin.sum_univ_two, complexTorusPeriodBasis_apply, smul_eq_mul]
+
+theorem complexTorus_parameter_affine_representation_unique
+    (τ : ComplexTorusParameter) {m n m' n' : ℤ}
+    (h : (m : ℂ) + (n : ℂ) * (τ : ℂ) =
+      (m' : ℂ) + (n' : ℂ) * (τ : ℂ)) :
+    m = m' ∧ n = n' := by
+  have him := congrArg Complex.im h
+  have hnreal : (n : ℝ) * (τ : ℂ).im =
+      (n' : ℝ) * (τ : ℂ).im := by
+    simpa only [Complex.add_im, Complex.intCast_im, Complex.mul_im,
+      Complex.intCast_re, zero_mul, add_zero, zero_add] using him
+  have hτpos : 0 < (τ : ℂ).im := τ.im_pos
+  have hnreal' : (n : ℝ) = (n' : ℝ) := by
+    nlinarith
+  have hn : n = n' := by
+    exact_mod_cast hnreal'
+  have hreal := congrArg Complex.re h
+  have hmreal : (m : ℝ) + (n : ℝ) * (τ : ℂ).re =
+      (m' : ℝ) + (n' : ℝ) * (τ : ℂ).re := by
+    simpa only [Complex.add_re, Complex.intCast_re, Complex.mul_re,
+      Complex.intCast_im, zero_mul, zero_add, add_zero, sub_zero] using hreal
+  have hmreal' : (m : ℝ) = (m' : ℝ) := by
+    rw [hnreal'] at hmreal
+    linarith
+  have hm : m = m' := by
+    exact_mod_cast hmreal'
+  exact ⟨hm, hn⟩
 
 theorem complexTorusLattice_norm_lower_bound
     (τ : ComplexTorusParameter)
@@ -3226,6 +3260,21 @@ noncomputable def complexTorusMarkedSurfaceFamily :
   MathlibFormal.ComplexSurfaceFamily.MarkedUnmarkedFamily.toFamily
     complexTorusMarkedFamilySkeleton
 
+/-! A genuine global total-space atlas is an additional geometric datum.  The
+    existing quotient atlas is only proved on the uniform parameter
+    neighbourhood `complexTorusLocalParameterNeighborhood`; it therefore
+    cannot be silently promoted to a global family over the whole upper half
+    plane.  This witness packages the exact datum needed by the global
+    classification layer without asserting that the missing global atlas has
+    already been constructed. -/
+
+structure ComplexTorusGlobalMarkedSurfaceFamilyWitness where
+  globalFamily :
+    MathlibFormal.ComplexSurfaceFamily.GlobalHolomorphicMarkedFamily
+      (S := ComplexTorus complexTorusBaseParameter)
+      (B := ComplexTorusParameter)
+  family_eq : globalFamily.family = complexTorusMarkedSurfaceFamily
+
 /-! The concrete marked torus family now has a genuine dependent-sum
 pullback.  This is the data-carrying version of “a test base maps to the
 Teichmüller parameter space and receives the pulled-back marked family”; no
@@ -3400,6 +3449,14 @@ noncomputable def complexTorusLocalHolomorphicParameterPullback
       {c : ℂ // c ∈ F.domain} :=
   complexTorusHolomorphicParameterPullback
     F.toComplexTorusHolomorphicParameterMap
+
+theorem complexTorusMarkedSurfaceFamily_canonicalPullback_eq
+    (F : ComplexTorusHolomorphicParameterMap) :
+    (complexTorusHolomorphicParameterPullback F).toFamily =
+      MathlibFormal.ComplexSurfaceFamily.canonicalPullback
+        complexTorusMarkedSurfaceFamily
+        F.parameterPoint F.parameterPoint_continuous := by
+  rfl
 
 @[simp] theorem complexTorusLocalHolomorphicParameterPullback_fiber
     (F : ComplexTorusLocalHolomorphicParameterMap)
@@ -3594,9 +3651,81 @@ noncomputable def ComplexTorusLocalFineModuliWitness.precompose
     exact complexTorusLocalHolomorphicParameterClassification_map_unique
       (F.precompose G hG) C₁ C₂
 
+/-! The preceding witness is indexed by one local analytic test map.  The
+    next structure quantifies over the whole restricted test category at
+    once: its objects are precisely the local parameter maps whose values
+    stay in the fixed neighbourhood of the upper half-plane.  This is a
+    genuine restricted universal-property object, but it is deliberately not
+    promoted to the global `FineHolomorphicUniversalMarkedFamily`, whose test
+    quantifier ranges over all marked families.
+-/
+
+noncomputable abbrev ComplexTorusLocalTestFamily
+    (F : ComplexTorusLocalHolomorphicParameterMap) :
+    MathlibFormal.ComplexSurfaceFamily.Family
+      (ComplexTorus complexTorusBaseParameter)
+      {c : ℂ // c ∈ F.domain} :=
+  MathlibFormal.ComplexSurfaceFamily.MarkedUnmarkedFamily.toFamily
+    (complexTorusLocalHolomorphicParameterPullback F)
+
+structure ComplexTorusLocalRestrictedFineHolomorphicUniversalMarkedFamily where
+  classify : ∀ (F : ComplexTorusLocalHolomorphicParameterMap),
+    MathlibFormal.HolomorphicFamilyClassification
+      complexTorusMarkedSurfaceFamily (ComplexTorusLocalTestFamily F)
+  classify_map_eq_parameterPoint :
+    ∀ (F : ComplexTorusLocalHolomorphicParameterMap)
+      (C : MathlibFormal.HolomorphicFamilyClassification
+        complexTorusMarkedSurfaceFamily (ComplexTorusLocalTestFamily F)),
+      C.map =
+        (fun c => F.toComplexTorusHolomorphicParameterMap.parameterPoint c)
+  classify_map_unique :
+    ∀ (F : ComplexTorusLocalHolomorphicParameterMap)
+      (C₁ C₂ : MathlibFormal.HolomorphicFamilyClassification
+        complexTorusMarkedSurfaceFamily (ComplexTorusLocalTestFamily F)),
+      C₁.map = C₂.map
+
+namespace ComplexTorusLocalRestrictedFineHolomorphicUniversalMarkedFamily
+
+noncomputable def fromLocalWitnesses :
+    ComplexTorusLocalRestrictedFineHolomorphicUniversalMarkedFamily where
+  classify := fun F => (complexTorusLocalFineModuliWitness F).classification
+  classify_map_eq_parameterPoint := by
+    intro F C
+    exact (complexTorusLocalFineModuliWitness F).classification_map_eq C
+  classify_map_unique := by
+    intro F C₁ C₂
+    exact (complexTorusLocalFineModuliWitness F).classification_maps_unique C₁ C₂
+
+noncomputable def classifyWitness
+    (U : ComplexTorusLocalRestrictedFineHolomorphicUniversalMarkedFamily)
+    (F : ComplexTorusLocalHolomorphicParameterMap) :
+    ComplexTorusLocalFineModuliWitness F where
+  classification := U.classify F
+  classification_map_eq_parameterPoint := U.classify_map_eq_parameterPoint F
+  classification_map_unique := U.classify_map_unique F
+
+theorem classify_map_eq_parameterPoint'
+    (U : ComplexTorusLocalRestrictedFineHolomorphicUniversalMarkedFamily)
+    (F : ComplexTorusLocalHolomorphicParameterMap)
+    (C : MathlibFormal.HolomorphicFamilyClassification
+      complexTorusMarkedSurfaceFamily (ComplexTorusLocalTestFamily F)) :
+    C.map =
+      (fun c => F.toComplexTorusHolomorphicParameterMap.parameterPoint c) :=
+  U.classify_map_eq_parameterPoint F C
+
+theorem classify_maps_unique
+    (U : ComplexTorusLocalRestrictedFineHolomorphicUniversalMarkedFamily)
+    (F : ComplexTorusLocalHolomorphicParameterMap)
+    (C₁ C₂ : MathlibFormal.HolomorphicFamilyClassification
+      complexTorusMarkedSurfaceFamily (ComplexTorusLocalTestFamily F)) :
+    C₁.map = C₂.map :=
+  U.classify_map_unique F C₁ C₂
+
+end ComplexTorusLocalRestrictedFineHolomorphicUniversalMarkedFamily
+
 /-! The upper half-plane is a complex manifold rather than a complex vector
-space.  For this reason the analytic classifying-map certificate is recorded
-in its ambient complex coordinate: the subtype-valued map is the restriction
+    space.  For this reason the analytic classifying-map certificate is recorded
+    in its ambient complex coordinate: the subtype-valued map is the restriction
 of a map `ℂ → ℂ` that is differentiable on the test domain. -/
 
 structure ComplexTorusLocalHolomorphicClassificationWitness
@@ -4160,6 +4289,126 @@ theorem complexTorusLocalHolomorphicParameterDeckHomeomorph_apply
         F.toComplexTorusHolomorphicParameterMap.map p.1) := by
   rfl
 
+theorem complexTorusLocalHolomorphicParameterDeckHomeomorph_continuousOn
+    (F : ComplexTorusLocalHolomorphicParameterMap) (m n : ℤ) (r : ℝ) :
+    ContinuousOn
+      (complexTorusLocalHolomorphicParameterDeckHomeomorph F m n)
+      (F.domain ×ˢ Metric.ball (0 : ℂ) r) := by
+  change ContinuousOn
+    (F.toComplexTorusHolomorphicParameterMap.deckTransition m n)
+    (F.domain ×ˢ Metric.ball (0 : ℂ) r)
+  exact F.deckTransition_continuousOn m n r
+
+theorem complexTorusLocalHolomorphicParameterDeckHomeomorph_differentiableOn
+    (F : ComplexTorusLocalHolomorphicParameterMap) (m n : ℤ) (r : ℝ) :
+    DifferentiableOn ℂ
+      (complexTorusLocalHolomorphicParameterDeckHomeomorph F m n)
+      (F.domain ×ˢ Metric.ball (0 : ℂ) r) := by
+  change DifferentiableOn ℂ
+    (F.toComplexTorusHolomorphicParameterMap.deckTransition m n)
+    (F.domain ×ˢ Metric.ball (0 : ℂ) r)
+  exact F.deckTransition_differentiableOn m n r
+
+/-! The parameter-dependent deck maps form an additive action on the
+ambient coordinate plane.  This is the algebraic cocycle behind the
+parameterized transition sheets below: changing a lift by `(m,n)` and then
+by `(m',n')` is the same as changing it once by their sum.  The action is
+recorded before restricting to any particular chart overlap, so the same
+calculation can be reused for double and triple intersections. -/
+
+noncomputable def complexTorusLocalHolomorphicParameterDeckAddAction
+    (F : ComplexTorusLocalHolomorphicParameterMap) :
+    AddAction (ℤ × ℤ) (ℂ × ℂ) where
+  vadd := fun mn p =>
+    complexTorusLocalHolomorphicParameterDeckHomeomorph F mn.1 mn.2 p
+  zero_vadd := by
+    intro p
+    change complexTorusLocalHolomorphicParameterDeckHomeomorph F 0 0 p = p
+    rw [complexTorusLocalHolomorphicParameterDeckHomeomorph_apply]
+    simp
+  add_vadd := by
+    intro mn pq p
+    change complexTorusLocalHolomorphicParameterDeckHomeomorph F
+        (mn + pq).1 (mn + pq).2 p =
+      complexTorusLocalHolomorphicParameterDeckHomeomorph F mn.1 mn.2
+        (complexTorusLocalHolomorphicParameterDeckHomeomorph F pq.1 pq.2 p)
+    change complexTorusLocalHolomorphicParameterDeckHomeomorph F
+        (mn.1 + pq.1) (mn.2 + pq.2) p =
+      complexTorusLocalHolomorphicParameterDeckHomeomorph F mn.1 mn.2
+        (complexTorusLocalHolomorphicParameterDeckHomeomorph F pq.1 pq.2 p)
+    rw [complexTorusLocalHolomorphicParameterDeckHomeomorph_apply,
+      complexTorusLocalHolomorphicParameterDeckHomeomorph_apply,
+      complexTorusLocalHolomorphicParameterDeckHomeomorph_apply]
+    apply Prod.ext
+    · rfl
+    · push_cast
+      ring
+
+theorem complexTorusLocalHolomorphicParameterDeckAddAction_vadd
+    (F : ComplexTorusLocalHolomorphicParameterMap)
+    (mn : ℤ × ℤ) (p : ℂ × ℂ) :
+    letI : AddAction (ℤ × ℤ) (ℂ × ℂ) :=
+      complexTorusLocalHolomorphicParameterDeckAddAction F
+    mn +ᵥ p =
+      complexTorusLocalHolomorphicParameterDeckHomeomorph F mn.1 mn.2 p := by
+  rfl
+
+theorem complexTorusLocalHolomorphicParameterDeckHomeomorph_add_apply
+    (F : ComplexTorusLocalHolomorphicParameterMap)
+    (mn pq : ℤ × ℤ) (p : ℂ × ℂ) :
+    complexTorusLocalHolomorphicParameterDeckHomeomorph F
+        (mn.1 + pq.1) (mn.2 + pq.2) p =
+      complexTorusLocalHolomorphicParameterDeckHomeomorph F mn.1 mn.2
+        (complexTorusLocalHolomorphicParameterDeckHomeomorph F pq.1 pq.2 p) := by
+  rw [complexTorusLocalHolomorphicParameterDeckHomeomorph_apply,
+    complexTorusLocalHolomorphicParameterDeckHomeomorph_apply,
+    complexTorusLocalHolomorphicParameterDeckHomeomorph_apply]
+  apply Prod.ext
+  · rfl
+  · push_cast
+    ring
+
+theorem complexTorusLocalHolomorphicParameterDeckHomeomorph_symm_apply
+    (F : ComplexTorusLocalHolomorphicParameterMap)
+    (m n : ℤ) (p : ℂ × ℂ) :
+    (complexTorusLocalHolomorphicParameterDeckHomeomorph F m n).symm p =
+      complexTorusLocalHolomorphicParameterDeckHomeomorph F (-m) (-n) p := by
+  rw [complexTorusLocalHolomorphicParameterDeckHomeomorph_apply]
+  change (p.1, p.2 - (m : ℂ) - (n : ℂ) *
+      F.toComplexTorusHolomorphicParameterMap.map p.1) =
+    (p.1, p.2 + ((-m : ℤ) : ℂ) + ((-n : ℤ) : ℂ) *
+      F.toComplexTorusHolomorphicParameterMap.map p.1)
+  apply Prod.ext
+  · rfl
+  · push_cast
+    ring
+
+theorem complexTorusLocalHolomorphicParameterDeckAddAction_invariant
+    (F : ComplexTorusLocalHolomorphicParameterMap)
+    (mn : ℤ × ℤ) (p : {b : ℂ // b ∈ F.domain} × ℂ) :
+    complexTorusHolomorphicParameterPullback_toTotal
+        F.toComplexTorusHolomorphicParameterMap
+        ⟨p.1,
+          complexTorusMk
+            (F.toComplexTorusHolomorphicParameterMap.parameterPoint p.1)
+            ((complexTorusLocalHolomorphicParameterDeckHomeomorph F
+                mn.1 mn.2 (p.1, p.2)).2)⟩ =
+      complexTorusHolomorphicParameterPullback_toTotal
+        F.toComplexTorusHolomorphicParameterMap
+        ⟨p.1,
+          complexTorusMk
+            (F.toComplexTorusHolomorphicParameterMap.parameterPoint p.1)
+            p.2⟩ := by
+  change complexTorusTotalMk
+      (F.toComplexTorusHolomorphicParameterMap.parameterPoint p.1,
+        (complexTorusLocalHolomorphicParameterDeckHomeomorph F
+          mn.1 mn.2 (p.1, p.2)).2) =
+    complexTorusTotalMk
+      (F.toComplexTorusHolomorphicParameterMap.parameterPoint p.1, p.2)
+  rw [complexTorusLocalHolomorphicParameterDeckHomeomorph_apply]
+  exact complexTorusLatticeShift_totalMk mn.1 mn.2
+    (F.toComplexTorusHolomorphicParameterMap.parameterPoint p.1, p.2)
+
 def complexTorusLocalHolomorphicParameterDeckOverlap
     (F : ComplexTorusLocalHolomorphicParameterMap)
     (c₁ c₂ : ℂ) (m n : ℤ) : Set (ℂ × ℂ) :=
@@ -4560,6 +4809,323 @@ theorem complexTorusLocalHolomorphicParameterChartTransitionMap_eq_deck_on_sheet
         F c₁ c₂ m n)
       hp
   convert h using 1
+
+/-! The explicit torus sheets now instantiate the generic deck-transition
+    cover from `MathlibComplex`.  The next pointwise theorem can therefore
+    use the common sheet-selection lemma rather than repeating the union
+    elimination locally. -/
+
+noncomputable def complexTorusLocalHolomorphicParameterDeckTransitionCover
+    (F : ComplexTorusLocalHolomorphicParameterMap) (c₁ c₂ : ℂ) :
+    @MathlibFormal.ComplexSurfaceChartDeckTransitionCover
+      (Sigma (fun b : {b : ℂ // b ∈ F.domain} =>
+        ComplexTorus (F.parameterPoint b)))
+      (complexTorusHolomorphicParameterPullback
+        F.toComplexTorusHolomorphicParameterMap).family.totalTopology
+      (complexTorusLocalHolomorphicParameterSurfaceChart F c₁)
+      (complexTorusLocalHolomorphicParameterSurfaceChart F c₂)
+  (ℤ × ℤ) where
+  sheet := fun mn =>
+    complexTorusLocalHolomorphicParameterChartTransitionSheet
+      F c₁ c₂ mn.1 mn.2
+  source_subset_overlap := by
+    intro mn
+    exact complexTorusLocalHolomorphicParameterDeckOverlap_subset_surfaceChartOverlap
+      F c₁ c₂ mn.1 mn.2
+  covers := by
+    rw [complexTorusLocalHolomorphicParameterSurfaceChartOverlap_eq_iUnion_deckSheets
+      F c₁ c₂]
+    intro p hp
+    exact hp
+  deck := fun mn =>
+    complexTorusLocalHolomorphicParameterDeckHomeomorph F mn.1 mn.2
+  map_eq_deck_on_source := by
+    intro mn p hp
+    have hsheet :=
+      MathlibFormal.ComplexSurfaceChartTransitionSheet.transitionMap_eq_map_on_source
+        (complexTorusLocalHolomorphicParameterChartTransitionSheet
+          F c₁ c₂ mn.1 mn.2)
+        (complexTorusLocalHolomorphicParameterDeckOverlap_subset_surfaceChartOverlap
+          F c₁ c₂ mn.1 mn.2)
+        hp
+    have hdeck :=
+      complexTorusLocalHolomorphicParameterChartTransitionMap_eq_deck_on_sheet
+        F c₁ c₂ mn.1 mn.2 hp
+    exact hsheet.symm.trans hdeck
+
+theorem complexTorusLocalHolomorphicParameterDeckOverlap_pairwise_disjoint
+    (F : ComplexTorusLocalHolomorphicParameterMap) (c₁ c₂ : ℂ) :
+    ∀ mn mn' : ℤ × ℤ, mn ≠ mn' →
+      Disjoint
+        ((complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₂).sheet mn).source
+        ((complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₂).sheet mn').source := by
+  intro mn mn' hne
+  refine Set.disjoint_left.2 ?_
+  intro p hp hp'
+  let τ : ComplexTorusParameter :=
+    F.parameterPoint ⟨p.1, hp.1.1⟩
+  have hτ : (τ : ℂ) ∈ complexTorusLocalParameterNeighborhood := by
+    exact F.parameterPoint_mem_localNeighborhood ⟨p.1, hp.1.1⟩
+  have hmn : complexTorusMk τ
+      (p.2 + (mn.1 : ℂ) + (mn.2 : ℂ) * (τ : ℂ)) =
+      complexTorusMk τ p.2 := by
+    have h := complexTorusLatticeShift_totalMk mn.1 mn.2 (τ, p.2)
+    change Sigma.mk τ
+        (complexTorusMk τ
+          (p.2 + (mn.1 : ℂ) + (mn.2 : ℂ) * (τ : ℂ))) =
+      Sigma.mk τ (complexTorusMk τ p.2) at h
+    exact eq_of_heq (Sigma.mk.inj_iff.mp h).2
+  have hmn' : complexTorusMk τ
+      (p.2 + (mn'.1 : ℂ) + (mn'.2 : ℂ) * (τ : ℂ)) =
+      complexTorusMk τ p.2 := by
+    have h := complexTorusLatticeShift_totalMk mn'.1 mn'.2 (τ, p.2)
+    change Sigma.mk τ
+        (complexTorusMk τ
+          (p.2 + (mn'.1 : ℂ) + (mn'.2 : ℂ) * (τ : ℂ))) =
+      Sigma.mk τ (complexTorusMk τ p.2) at h
+    exact eq_of_heq (Sigma.mk.inj_iff.mp h).2
+  have hdeck :
+      p.2 + (mn.1 : ℂ) + (mn.2 : ℂ) * (τ : ℂ) =
+      p.2 + (mn'.1 : ℂ) + (mn'.2 : ℂ) * (τ : ℂ) := by
+    apply complexTorusMk_injective_on_local_lift_ball_center τ hτ c₂
+    · change p.2 + (mn.1 : ℂ) + (mn.2 : ℂ) *
+        F.toComplexTorusHolomorphicParameterMap.map p.1 ∈
+        Metric.ball c₂ ((1 : ℝ) / 4)
+      exact hp.2.2
+    · change p.2 + (mn'.1 : ℂ) + (mn'.2 : ℂ) *
+        F.toComplexTorusHolomorphicParameterMap.map p.1 ∈
+        Metric.ball c₂ ((1 : ℝ) / 4)
+      exact hp'.2.2
+    exact hmn.trans hmn'.symm
+  have hcoeff :
+      (mn.1 : ℂ) + (mn.2 : ℂ) * (τ : ℂ) =
+      (mn'.1 : ℂ) + (mn'.2 : ℂ) * (τ : ℂ) := by
+    linear_combination hdeck
+  have hindices := complexTorus_parameter_affine_representation_unique τ hcoeff
+  exact hne (Prod.ext hindices.1 hindices.2)
+
+theorem complexTorusLocalHolomorphicParameterDeckTransitionCover.eventually_sheetSelector_eq
+    (F : ComplexTorusLocalHolomorphicParameterMap) (c₁ c₂ : ℂ)
+    (p : {q : ℂ × ℂ // q ∈
+      MathlibFormal.ComplexSurfaceChart.overlap
+        (complexTorusLocalHolomorphicParameterSurfaceChart F c₁)
+        (complexTorusLocalHolomorphicParameterSurfaceChart F c₂)}) :
+    ∀ᶠ q in 𝓝 p,
+      (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₂).sheetSelector q =
+        (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₂).sheetSelector p := by
+  apply MathlibFormal.ComplexSurfaceChartDeckTransitionCover.eventually_sheetSelector_eq
+    (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₂)
+  · intro mn
+    exact complexTorusLocalHolomorphicParameterDeckOverlap_isOpen F c₁ c₂ mn.1 mn.2
+  · exact complexTorusLocalHolomorphicParameterDeckOverlap_pairwise_disjoint F c₁ c₂
+
+theorem complexTorusLocalHolomorphicParameterDeckTransitionCover.continuous_sheetSelector
+    (F : ComplexTorusLocalHolomorphicParameterMap) (c₁ c₂ : ℂ) :
+    Continuous
+      (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₂).sheetSelector := by
+  letI : DiscreteTopology (ℤ × ℤ) := inferInstance
+  apply MathlibFormal.ComplexSurfaceChartDeckTransitionCover.continuous_sheetSelector
+    (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₂)
+  · intro mn
+    exact complexTorusLocalHolomorphicParameterDeckOverlap_isOpen F c₁ c₂ mn.1 mn.2
+  · exact complexTorusLocalHolomorphicParameterDeckOverlap_pairwise_disjoint F c₁ c₂
+
+theorem complexTorusLocalHolomorphicParameterDeckTransitionCover.continuous_selectedDeckMap
+    (F : ComplexTorusLocalHolomorphicParameterMap) (c₁ c₂ : ℂ) :
+    Continuous
+      (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₂).selectedDeckMap := by
+  letI : DiscreteTopology (ℤ × ℤ) := inferInstance
+  apply MathlibFormal.ComplexSurfaceChartDeckTransitionCover.continuous_selectedDeckMap
+    (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₂)
+  · intro mn
+    exact complexTorusLocalHolomorphicParameterDeckOverlap_isOpen F c₁ c₂ mn.1 mn.2
+  · exact complexTorusLocalHolomorphicParameterDeckOverlap_pairwise_disjoint F c₁ c₂
+
+theorem complexTorusLocalHolomorphicParameterDeckTransitionCover.continuous_transitionMap_on_overlap
+    (F : ComplexTorusLocalHolomorphicParameterMap) (c₁ c₂ : ℂ) :
+    Continuous (fun p :
+      {q : ℂ × ℂ // q ∈
+        MathlibFormal.ComplexSurfaceChart.overlap
+          (complexTorusLocalHolomorphicParameterSurfaceChart F c₁)
+          (complexTorusLocalHolomorphicParameterSurfaceChart F c₂)} =>
+      MathlibFormal.ComplexSurfaceChart.transitionMap
+        (complexTorusLocalHolomorphicParameterSurfaceChart F c₁)
+        (complexTorusLocalHolomorphicParameterSurfaceChart F c₂)
+        (p : ℂ × ℂ)) := by
+  letI : DiscreteTopology (ℤ × ℤ) := inferInstance
+  apply MathlibFormal.ComplexSurfaceChartDeckTransitionCover.continuous_transitionMap_on_overlap
+    (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₂)
+  · intro mn
+    exact complexTorusLocalHolomorphicParameterDeckOverlap_isOpen F c₁ c₂ mn.1 mn.2
+  · exact complexTorusLocalHolomorphicParameterDeckOverlap_pairwise_disjoint F c₁ c₂
+
+theorem complexTorusLocalHolomorphicParameterDeckTransitionCover.selectedDeckMap_comp_on_overlap
+    (F : ComplexTorusLocalHolomorphicParameterMap)
+    (c₁ c₂ c₃ : ℂ)
+    (p : {q : ℂ × ℂ // q ∈
+      MathlibFormal.ComplexSurfaceChart.overlap
+        (complexTorusLocalHolomorphicParameterSurfaceChart F c₁)
+        (complexTorusLocalHolomorphicParameterSurfaceChart F c₂)})
+    (h₂₃ :
+      (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₂).selectedDeckMap p ∈
+        MathlibFormal.ComplexSurfaceChart.overlap
+          (complexTorusLocalHolomorphicParameterSurfaceChart F c₂)
+          (complexTorusLocalHolomorphicParameterSurfaceChart F c₃))
+    (h₁₃ :
+      (p : ℂ × ℂ) ∈
+        MathlibFormal.ComplexSurfaceChart.overlap
+          (complexTorusLocalHolomorphicParameterSurfaceChart F c₁)
+          (complexTorusLocalHolomorphicParameterSurfaceChart F c₃)) :
+    (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₂ c₃).selectedDeckMap
+        ⟨(complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₂).selectedDeckMap p,
+          h₂₃⟩ =
+      (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₃).selectedDeckMap
+        ⟨p, h₁₃⟩ := by
+  exact
+    MathlibFormal.ComplexSurfaceChartDeckTransitionCover.selectedDeckMap_comp_on_overlap
+      (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₂)
+      (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₂ c₃)
+      (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₃)
+      p h₂₃ h₁₃
+
+/-! A pointwise form of the sheet calculation.  If one total-space point is
+    visible in both lifted charts, its two coordinate values determine one of
+    the explicit lattice sheets, and the target coordinate is the associated
+    deck transform of the source coordinate. -/
+
+theorem complexTorusLocalHolomorphicParameterSurfaceChart_transition_eq_deck_at
+    (F : ComplexTorusLocalHolomorphicParameterMap)
+    (c₁ c₂ : ℂ)
+    (x : Sigma (fun b : {b : ℂ // b ∈ F.domain} =>
+      ComplexTorus (F.parameterPoint b)))
+    (hx₁ : x ∈
+      (complexTorusLocalHolomorphicParameterSurfaceChart F c₁).domain)
+    (hx₂ : x ∈
+      (complexTorusLocalHolomorphicParameterSurfaceChart F c₂).domain) :
+    ∃ mn : ℤ × ℤ,
+      ((complexTorusLocalHolomorphicParameterSurfaceChart F c₁).chart
+          ⟨x, hx₁⟩).1 ∈
+        complexTorusLocalHolomorphicParameterDeckOverlap
+          F c₁ c₂ mn.1 mn.2 ∧
+      ((complexTorusLocalHolomorphicParameterSurfaceChart F c₂).chart
+          ⟨x, hx₂⟩).1 =
+        complexTorusLocalHolomorphicParameterDeckHomeomorph F mn.1 mn.2
+          ((complexTorusLocalHolomorphicParameterSurfaceChart F c₁).chart
+            ⟨x, hx₁⟩).1 := by
+  letI : TopologicalSpace
+      (Sigma (fun b : {b : ℂ // b ∈ F.domain} =>
+        ComplexTorus (F.parameterPoint b))) :=
+    (complexTorusHolomorphicParameterPullback
+      F.toComplexTorusHolomorphicParameterMap).family.totalTopology
+  let chart₁ := complexTorusLocalHolomorphicParameterSurfaceChart F c₁
+  let chart₂ := complexTorusLocalHolomorphicParameterSurfaceChart F c₂
+  let p₁ := (chart₁.chart ⟨x, hx₁⟩).1
+  let p₂ := (chart₂.chart ⟨x, hx₂⟩).1
+  have hsourceRange : p₁ ∈ chart₁.range := by
+    exact (chart₁.chart ⟨x, hx₁⟩).property
+  have hinv :
+      (chart₁.chart.symm ⟨p₁, hsourceRange⟩).1 = x := by
+    have hchart :
+        (⟨p₁, hsourceRange⟩ : {p : ℂ × ℂ // p ∈ chart₁.range}) =
+          chart₁.chart ⟨x, hx₁⟩ := by
+      apply Subtype.ext
+      rfl
+    calc
+      (chart₁.chart.symm ⟨p₁, hsourceRange⟩).1 =
+          (chart₁.chart.symm (chart₁.chart ⟨x, hx₁⟩)).1 := by
+            rw [← hchart]
+      _ = x := by
+        exact congrArg Subtype.val
+          (chart₁.chart.symm_apply_apply ⟨x, hx₁⟩)
+  have hOverlap : p₁ ∈
+      MathlibFormal.ComplexSurfaceChart.overlap chart₁ chart₂ := by
+    refine ⟨hsourceRange, ?_⟩
+    change (chart₁.chart.symm ⟨p₁, hsourceRange⟩).1 ∈ chart₂.domain
+    rw [hinv]
+    exact hx₂
+  have hsheet :=
+    MathlibFormal.ComplexSurfaceChartDeckTransitionCover.exists_sheet_at
+      (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₂)
+      hOverlap
+  rcases hsheet with ⟨mn, hmn, hdeck⟩
+  have htransition :
+      MathlibFormal.ComplexSurfaceChart.transitionMap chart₁ chart₂ p₁ = p₂ := by
+    rw [MathlibFormal.ComplexSurfaceChart.transitionMap_on_overlap
+      chart₁ chart₂ hOverlap]
+    have hpoint :
+        (chart₁.chart.symm
+          ⟨p₁,
+            MathlibFormal.ComplexSurfaceChart.overlapSourceRangeProof
+              chart₁ chart₂ hOverlap⟩).1 = x := by
+      have hchart :
+          (⟨p₁,
+              MathlibFormal.ComplexSurfaceChart.overlapSourceRangeProof
+                chart₁ chart₂ hOverlap⟩ :
+            {p : ℂ × ℂ // p ∈ chart₁.range}) =
+            chart₁.chart ⟨x, hx₁⟩ := by
+        apply Subtype.ext
+        rfl
+      calc
+        (chart₁.chart.symm
+            ⟨p₁,
+              MathlibFormal.ComplexSurfaceChart.overlapSourceRangeProof
+                chart₁ chart₂ hOverlap⟩).1 =
+            (chart₁.chart.symm (chart₁.chart ⟨x, hx₁⟩)).1 := by
+              rw [← hchart]
+        _ = x := by
+          exact congrArg Subtype.val
+            (chart₁.chart.symm_apply_apply ⟨x, hx₁⟩)
+    have htarget :
+        (⟨(chart₁.chart.symm
+            ⟨p₁,
+              MathlibFormal.ComplexSurfaceChart.overlapSourceRangeProof
+                chart₁ chart₂ hOverlap⟩).1,
+          MathlibFormal.ComplexSurfaceChart.overlapSourceRangeProof_spec
+            chart₁ chart₂ hOverlap⟩ :
+          {x : _ // x ∈ chart₂.domain}) =
+        ⟨x, hx₂⟩ := by
+      apply Subtype.ext
+      exact hpoint
+    rw [htarget]
+  refine ⟨mn, hmn, ?_⟩
+  change p₂ =
+    complexTorusLocalHolomorphicParameterDeckHomeomorph F mn.1 mn.2 p₁
+  rw [← htransition]
+  exact hdeck
+
+/-! A short adapter records that the torus statement is an instance of the
+    generic common-point theorem, with no additional sheet-selection proof. -/
+
+theorem complexTorusLocalHolomorphicParameterSurfaceChart_transition_eq_deck_at_generic
+    (F : ComplexTorusLocalHolomorphicParameterMap)
+    (c₁ c₂ : ℂ)
+    (x : Sigma (fun b : {b : ℂ // b ∈ F.domain} =>
+      ComplexTorus (F.parameterPoint b)))
+    (hx₁ : x ∈
+      (complexTorusLocalHolomorphicParameterSurfaceChart F c₁).domain)
+    (hx₂ : x ∈
+      (complexTorusLocalHolomorphicParameterSurfaceChart F c₂).domain) :
+    ∃ mn : ℤ × ℤ,
+      ((complexTorusLocalHolomorphicParameterSurfaceChart F c₁).chart
+          ⟨x, hx₁⟩).1 ∈
+        complexTorusLocalHolomorphicParameterDeckOverlap
+          F c₁ c₂ mn.1 mn.2 ∧
+      ((complexTorusLocalHolomorphicParameterSurfaceChart F c₂).chart
+          ⟨x, hx₂⟩).1 =
+        complexTorusLocalHolomorphicParameterDeckHomeomorph F mn.1 mn.2
+          ((complexTorusLocalHolomorphicParameterSurfaceChart F c₁).chart
+            ⟨x, hx₁⟩).1 := by
+  letI : TopologicalSpace
+      (Sigma (fun b : {b : ℂ // b ∈ F.domain} =>
+        ComplexTorus (F.parameterPoint b))) :=
+    (complexTorusHolomorphicParameterPullback
+      F.toComplexTorusHolomorphicParameterMap).family.totalTopology
+  have h :=
+    MathlibFormal.ComplexSurfaceChartDeckTransitionCover.chart_transition_eq_deck_at
+      (complexTorusLocalHolomorphicParameterDeckTransitionCover F c₁ c₂)
+      x hx₁ hx₂
+  rcases h with ⟨mn, hmn, hdeck⟩
+  exact ⟨mn, hmn, hdeck⟩
 
 theorem complexTorusLocalHolomorphicParameterSurfaceChart_transition_differentiableOn
     (F : ComplexTorusLocalHolomorphicParameterMap) (c₁ c₂ : ℂ) :

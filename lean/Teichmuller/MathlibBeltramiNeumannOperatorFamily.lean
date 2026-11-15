@@ -33,6 +33,62 @@ structure NeumannOperatorFamily (B E : Type*)
   forcing : B → E
   forcing_continuous : Continuous forcing
 
+/-! A scalar-coefficient specialization of the general operator family.
+
+This is the operator-theoretic shape K_b = μ_b • S: the coefficient varies
+continuously, the singular operator is fixed, and one radius controls every
+operator norm.  The construction below does not identify S with the
+Beurling transform; it only makes the classical scaling pattern concrete.
+-/
+
+structure ScaledNeumannOperatorFamily (B E : Type*)
+    [TopologicalSpace B]
+    [NormedAddCommGroup E] [NormedSpace ℂ E] [CompleteSpace E] where
+  coefficient : B → ℂ
+  coefficient_continuous : Continuous coefficient
+  singularOperator : E →L[ℂ] E
+  radius : ℝ≥0
+  radius_lt_one : radius < 1
+  coefficient_operator_norm_le :
+    ∀ b, ‖coefficient b‖ * ‖singularOperator‖ ≤ (radius : ℝ)
+  forcing : B → E
+  forcing_continuous : Continuous forcing
+
+namespace ScaledNeumannOperatorFamily
+
+variable {B E : Type*}
+  [TopologicalSpace B]
+  [NormedAddCommGroup E] [NormedSpace ℂ E] [CompleteSpace E]
+
+noncomputable def toNeumannOperatorFamily
+    (F : ScaledNeumannOperatorFamily B E) :
+    NeumannOperatorFamily B E where
+  radius := F.radius
+  radius_lt_one := F.radius_lt_one
+  kernel := fun b => F.coefficient b • F.singularOperator
+  kernel_norm_le := by
+    intro b
+    have hnorm :
+        ‖F.coefficient b • F.singularOperator‖ ≤ (F.radius : ℝ) :=
+      (ContinuousLinearMap.opNorm_smul_le _ _).trans
+        (F.coefficient_operator_norm_le b)
+    exact_mod_cast hnorm
+  kernel_continuous := by
+    simpa using
+      F.coefficient_continuous.smul
+        (continuous_const :
+          Continuous (fun _ : B => F.singularOperator))
+  forcing := F.forcing
+  forcing_continuous := F.forcing_continuous
+
+@[simp] theorem toNeumannOperatorFamily_kernel
+    (F : ScaledNeumannOperatorFamily B E) (b : B) :
+    F.toNeumannOperatorFamily.kernel b =
+      F.coefficient b • F.singularOperator :=
+  rfl
+
+end ScaledNeumannOperatorFamily
+
 namespace NeumannOperatorFamily
 
 variable {B E : Type*}
@@ -199,6 +255,19 @@ theorem continuous_solution (F : NeumannOperatorFamily B E) :
   exact hbound.trans_lt hmul
 
 end NeumannOperatorFamily
+
+namespace ScaledNeumannOperatorFamily
+
+variable {B E : Type*}
+  [TopologicalSpace B]
+  [NormedAddCommGroup E] [NormedSpace ℂ E] [CompleteSpace E]
+
+theorem toNeumannOperatorFamily_solution_continuous
+    (F : ScaledNeumannOperatorFamily B E) :
+    Continuous (NeumannOperatorFamily.solution F.toNeumannOperatorFamily) :=
+  NeumannOperatorFamily.continuous_solution F.toNeumannOperatorFamily
+
+end ScaledNeumannOperatorFamily
 
 end
 

@@ -1,4 +1,4 @@
-import Teichmuller.MathlibBeltramiDifferential
+import Teichmuller.MathlibBeltramiFamily
 
 namespace Teichmuller
 
@@ -160,6 +160,152 @@ theorem constantBeltramiAffinePointwiseFamilyWitness_map_apply
     ((constantBeltramiAffinePointwiseFamilyWitness m).solution μ).map z =
       constantBeltramiAffineMap μ z :=
   rfl
+
+/-!
+The affine family closes the coefficient/solution loop pointwise: after
+solving the Beltrami equation, the coefficient recovered from the real
+differential is the original parameter.  This is the concrete model-level
+compatibility that a later measurable Riemann mapping theorem must preserve.
+-/
+theorem constantBeltramiAffinePointwiseFamilyWitness_recover_coefficient
+    (m : Measure ℂ) (μ : constantBeltramiParameter) (z : ℂ) :
+    fderivBeltramiCoefficient
+        ((constantBeltramiAffinePointwiseFamilyWitness m).solution μ).map z =
+      (constantBeltramiAffinePointwiseFamilyWitness m).coefficient μ z := by
+  change fderivBeltramiCoefficient (constantBeltramiAffineMap (μ : ℂ)) z = μ
+  exact constantBeltramiAffineMap_fderivBeltramiCoefficient μ.2 z
+
+noncomputable def constantBeltramiAffineParameterModel
+    (m : Measure ℂ) :
+    NormalizedBeltramiParameterModel constantBeltramiParameter m 0 where
+  toPointwiseNormalizedBeltramiFamilyWitness :=
+    constantBeltramiAffinePointwiseFamilyWitness m
+  recovered_coefficient := by
+    intro μ z
+    exact constantBeltramiAffinePointwiseFamilyWitness_recover_coefficient m μ z
+  coefficient_parameter_injective := by
+    intro μ ν h
+    exact Subtype.ext h
+
+@[simp] theorem constantBeltramiAffineParameterModel_parameterMap_apply
+    (m : Measure ℂ) (μ : constantBeltramiParameter) :
+    (constantBeltramiAffineParameterModel m).parameterMap μ = μ :=
+  rfl
+
+theorem constantBeltramiAffineParameterModel_parameterMap_injective
+    (m : Measure ℂ) :
+    Function.Injective (constantBeltramiAffineParameterModel m).parameterMap := by
+  exact (constantBeltramiAffineParameterModel m).parameterMap_injective
+
+/-! Any continuous injective reparametrization of the disk of constant
+    coefficients produces a new normalized affine model, and the generic
+    coefficient-classification witness recovers that reparametrization. -/
+
+noncomputable def constantBeltramiAffineReparametrizedClassification
+    {C : Type*} [TopologicalSpace C]
+    (m : Measure ℂ) (g : C → constantBeltramiParameter)
+    (hg : Continuous g) (hgi : Function.Injective g) :
+    NormalizedBeltramiParameterClassification
+      (constantBeltramiAffineParameterModel m)
+      ((constantBeltramiAffineParameterModel m).reparametrize g hg hgi) :=
+  NormalizedBeltramiParameterModel.reparametrizeClassification
+    (constantBeltramiAffineParameterModel m) g hg hgi
+
+@[simp] theorem constantBeltramiAffineReparametrizedClassification_map
+    {C : Type*} [TopologicalSpace C]
+    (m : Measure ℂ) (g : C → constantBeltramiParameter)
+    (hg : Continuous g) (hgi : Function.Injective g) :
+    (constantBeltramiAffineReparametrizedClassification m g hg hgi).map = g :=
+  rfl
+
+/-! The affine disk now also reaches the marked-family classification layer.
+    The identity base map is intentional: the parameter already labels the
+    transported fibre, while the next strengthening must add joint
+    holomorphicity over the total space. -/
+
+noncomputable def constantBeltramiAffineMarkedSurfaceClassification
+    (m : Measure ℂ) :
+    MathlibFormal.HolomorphicFamilyClassification
+      (MathlibFormal.NormalizedBeltramiParameterModel.toMarkedSurfaceFamily
+        (constantBeltramiAffineParameterModel m))
+      (MathlibFormal.ComplexSurfaceFamily.constantComplexPlaneFamily
+        constantBeltramiParameter) :=
+  MathlibFormal.NormalizedBeltramiParameterModel.toMarkedSurfaceFamilyClassification
+    (constantBeltramiAffineParameterModel m)
+
+/-! The same affine disk is now available at the data-carrying analytic-family
+    level.  Its local jointly holomorphic coordinates are obtained by choosing
+    a `ComplexBaseChart` on the coefficient disk. -/
+
+noncomputable def constantBeltramiAffineAnalyticFamily
+    (m : Measure ℂ) :
+    MathlibFormal.ComplexSurfaceFamily.AnalyticFamily ℂ
+      constantBeltramiParameter :=
+  MathlibFormal.NormalizedBeltramiParameterModel.toAnalyticFamily
+    (constantBeltramiAffineParameterModel m)
+
+noncomputable def constantBeltramiAffineLocalJointlyHolomorphicFamily
+    (m : Measure ℂ)
+    (C : MathlibFormal.ComplexSurfaceFamily.ComplexBaseChart
+      constantBeltramiParameter) :
+    MathlibFormal.ComplexSurfaceFamily.LocalJointlyHolomorphicFamily ℂ
+      (MathlibFormal.NormalizedBeltramiParameterModel.toMarkedSurfaceFamily
+        (constantBeltramiAffineParameterModel m)) C :=
+  MathlibFormal.NormalizedBeltramiParameterModel.toLocalJointlyHolomorphicFamily
+    (constantBeltramiAffineParameterModel m) C
+
+/-! The affine inverse is explicit, so the extra continuity gate needed by the
+    generic local chart constructor can be discharged rather than assumed. -/
+
+noncomputable def constantBeltramiAffineInverseContinuityWitness
+    (m : Measure ℂ) :
+    MathlibFormal.NormalizedBeltramiInverseContinuityWitness
+      (constantBeltramiAffineParameterModel m) where
+  solution_inverse_totalMap_continuous := by
+    have hden : Continuous (fun p : constantBeltramiParameter × ℂ =>
+        (1 - (Complex.normSq (p.1 : ℂ) : ℂ))⁻¹) := by
+      apply Continuous.inv₀
+      · fun_prop
+      · intro p
+        exact constantBeltrami_denominator_ne_zero p.1.2
+    have hnumer : Continuous (fun p : constantBeltramiParameter × ℂ =>
+        ((1 + (p.1 : ℂ)) * p.2 -
+          (p.1 : ℂ) * (starRingEnd ℂ) ((1 + (p.1 : ℂ)) * p.2))) := by
+      fun_prop
+    have hproduct := hden.mul hnumer
+    change Continuous (fun p : constantBeltramiParameter × ℂ =>
+      constantBeltramiAffineInverse (p.1 : ℂ) p.2)
+    change Continuous ((fun p : constantBeltramiParameter × ℂ =>
+        (1 - (Complex.normSq (p.1 : ℂ) : ℂ))⁻¹) *
+      (fun p : constantBeltramiParameter × ℂ =>
+        ((1 + (p.1 : ℂ)) * p.2 -
+          (p.1 : ℂ) * (starRingEnd ℂ) ((1 + (p.1 : ℂ)) * p.2))))
+    exact hproduct
+
+/-! The coefficient disk itself carries its tautological complex base chart:
+    the domain is the whole subtype and the range is the open unit disk in
+    `ℂ`.  This makes the preceding conditional chart construction fully
+    concrete for the affine model. -/
+
+noncomputable def constantBeltramiParameterComplexBaseChart :
+    MathlibFormal.ComplexSurfaceFamily.ComplexBaseChart
+      constantBeltramiParameter where
+  domain := Set.univ
+  domain_open := isOpen_univ
+  range := {z : ℂ | ‖z‖ < 1}
+  range_open := isOpen_lt continuous_norm continuous_const
+  chart := (@Homeomorph.Set.univ constantBeltramiParameter inferInstance).trans
+    (@Homeomorph.refl constantBeltramiParameter inferInstance)
+
+noncomputable def constantBeltramiAffineLocalJointlyHolomorphicChartWitness
+    (m : Measure ℂ) :
+    MathlibFormal.ComplexSurfaceFamily.LocalJointlyHolomorphicChartWitness
+      (constantBeltramiAffineLocalJointlyHolomorphicFamily m
+        constantBeltramiParameterComplexBaseChart) :=
+  MathlibFormal.NormalizedBeltramiParameterModel.toLocalJointlyHolomorphicChartWitness
+    (constantBeltramiAffineParameterModel m)
+    (constantBeltramiAffineInverseContinuityWitness m)
+    constantBeltramiParameterComplexBaseChart
 
 end
 
