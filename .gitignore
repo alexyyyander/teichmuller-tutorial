@@ -5,6 +5,7 @@
 *.toc
 *.fls
 *.fdb_latexmk
+*.xdv
 *.synctex.gz
 *.synctex(busy)
 *.bbl
