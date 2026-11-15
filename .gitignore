@@ -18,6 +18,9 @@
 build/
 docs/build/
 
+# Nested repository with its own git history and remote
+jacobian/
+
 # Lean build files
 .lake/
 .build/
