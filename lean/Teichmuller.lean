@@ -13,6 +13,7 @@ import Teichmuller.MathlibCech
 import Teichmuller.MathlibCechDescent
 import Teichmuller.MathlibCechConcrete
 import Teichmuller.MathlibTorus
+import Teichmuller.MathlibTorusCech
 import Teichmuller.MathlibBeltrami
 import Teichmuller.MathlibBeltramiContraction
 import Teichmuller.MathlibBeltramiNeumann
