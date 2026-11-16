@@ -19,6 +19,28 @@ Oswald Teichmüller proposed a unified program for studying variable Riemann sur
 
 ---
 
+## Repository Layout
+
+```
+.
+├── docs/
+│   ├── index.html          # GitHub Pages entry point
+│   ├── tutorial/           # sources compiled and published by CI (zh + en)
+│   ├── full-source/        # longer local drafts (not built by CI)
+│   └── interactive/        # standalone interactive HTML
+├── lean/
+│   ├── Teichmuller.lean    # library aggregator (35 modules)
+│   ├── Teichmuller/        # Lean 4 formalization modules
+│   └── Main.lean           # demo executable
+├── scripts/                # build and translation helpers
+├── .github/workflows/      # LaTeX + Lean + Pages CI
+├── lakefile.lean           # Lean build definition
+└── README.md / README.zh-CN.md
+```
+
+`docs/tutorial/` is the source that CI actually compiles and publishes.
+`docs/full-source/` keeps the longer local drafts: they use local CJK fonts and are **not** built by CI.
+
 ## For Beginners
 
 **This repository serves as a comprehensive learning resource for Teichmüller theory and related foundations.**

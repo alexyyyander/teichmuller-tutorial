@@ -21,6 +21,28 @@
 
 ---
 
+## 仓库结构
+
+```
+.
+├── docs/
+│   ├── index.html          # GitHub Pages 入口
+│   ├── tutorial/           # CI 实际编译并发布的源文件（中/英）
+│   ├── full-source/        # 更完整的本地版本（不由 CI 构建）
+│   └── interactive/        # 独立交互式 HTML
+├── lean/
+│   ├── Teichmuller.lean    # 库聚合模块（35 个）
+│   ├── Teichmuller/        # Lean 4 形式化模块
+│   └── Main.lean           # 演示可执行文件
+├── scripts/                # 构建与翻译辅助脚本
+├── .github/workflows/      # LaTeX + Lean + Pages CI
+├── lakefile.lean           # Lean 构建定义
+└── README.md / README.zh-CN.md
+```
+
+`docs/tutorial/` 是 CI 实际编译并发布的源文件。
+`docs/full-source/` 保留更完整的本地版本：它们使用本地中文字体，**不由 CI 构建**。
+
 ## 面向初学者
 
 **本仓库是学习 Teichmüller 理论及相关基础的综合学习资源。**
@@ -83,14 +105,24 @@ Agent 探索 → 数学验证 → 形式化检查 → 同行评审 → 合并
 
 | 组件 | 文件 | 状态 | 描述 |
 |------|------|------|------|
-| 拓扑层 | `Topology.lean` | ✅ 完成 | 拓扑空间、连续映射、同伦闭包 |
-| 复结构层 | `Complex.lean` | ✅ 完成 | 图册、过渡映射、全纯性 |
-| 解析族层 | `Family.lean` | ✅ 完成 | 依赖和总空间、拉回、普适性质 |
-| 模群层 | `Modular.lean` | ✅ 完成 | SL₂(ℤ) 矩阵代数、上半平面作用 |
-| Mathlib 桥接 | `MathlibTopology.lean` | ✅ 完成 | 标准 Mathlib 拓扑对象 |
-| 复图册 | `MathlibComplex.lean` | ✅ 完成 | 具体 ℂ 图册与 `DifferentiableOn` |
-| 纤维丛 | `MathlibFiberBundle.lean` | ✅ 完成 | 局部平凡化、拉回纤维丛 |
-| Beltrami 层 | `MathlibBeltrami.lean` | 🔄 进行中 | 可测系数、传输 cocycle |
+| 拓扑层 | `Topology.lean` | 🟡 接口层 | 拓扑空间、连续映射、同伦闭包 |
+| 复结构层 | `Complex.lean` | 🟡 结构接口 | 图册、过渡映射、全纯性字段 |
+| 解析族层 | `Family.lean` | 🟡 结构接口 | 依赖和总空间、拉回、分类字段 |
+| 模群层 | `Modular.lean` | 🟡 代数/作用层 | SL₂(ℤ) 矩阵代数与作用规范 |
+| Mathlib 桥接 | `MathlibTopology.lean` | 🟡 选定桥接 | 标准 Mathlib 拓扑对象 |
+| 复图册 | `MathlibComplex.lean` | 🟡 具体部分层 | 选定 ℂ 图册与 `DifferentiableOn` 过渡、固定参数纤维切片、标记纤维构造 |
+| 纤维丛 | `MathlibFiberBundle.lean` | 🟡 接口层 | 局部平凡化与拉回结构 |
+| Čech 下降 | `MathlibCech.lean` | 🟡 首个具体层 | 开覆盖、局部全局族、双全纯重叠映射、逆律、三重重叠 cocycle |
+| Čech 商 | `MathlibCechDescent.lean` | 🟡 具体商骨架 | 不交并局部总空间、cocycle 相容粘合步骤、局部单射、重叠总空间同胚、下降图册传输 |
+| 具体 Čech 族 | `MathlibCechConcrete.lean` | 🟡 具体图册比较层 | 多片限制、重叠图册、精确图册传输等式、联合全纯过渡、下降图册 witness |
+| 环面 Čech 桥 | `MathlibTorusCech.lean` | 🟡 选定紧纤维层 | 亏格一提升/deck witness、逐点源/靶重叠到提升的坐标比较、显式 Čech 下降 |
+| Beltrami | `MathlibBeltrami.lean` | 🔄 进行中 | 可测系数、传输 cocycle |
+| Beltrami 族桥 | `MathlibBeltramiFamily.lean` | 🟡 具体桥接 | 参数模型、锚定商、系数级分类、传输标记曲面族、携带数据的 `AnalyticFamily`、联合坐标族、条件性局部总空间图册 witness |
+| 缩放 Neumann 族 | `MathlibBeltramiNeumannOperatorFamily.lean` | 🟡 具体算子形态 | 连续标量系数、固定算子缩放 `K_b = μ_b • S`、一致压缩半径、连续不动点族 |
+| 乘子 Neumann 族 | `MathlibBeltramiNeumannMultiplierFamily.lean` | 🟡 具体 (L^p) 族 | 参数依赖系数乘子 `M_{μ_b}`、固定奇异算子 `B`、算子范数连续性、一致压缩、连续 Neumann 解族 |
+| Beurling L² 族 | `MathlibBeltramiNeumannBeurlingFamily.lean` | 🟡 闭子圆盘模型 | 常系数 (L^2) 乘子 `M_μ = μ id`、Fourier 定义的 Beurling 算子、`‖μ‖ ≤ r < 1` 上的一致半径、连续 Neumann 族 |
+| 剖面 Beurling 族 | `MathlibBeltramiNeumannProfileFamily.lean` | 🟡 空间剖面模型 | 固定有界可测剖面 `a(z)`、缩放系数 `μ_b(z) = b a(z)`、精确乘子恒等式 `M_{μ_b} = b M_a`、`‖b‖ ≤ r` 且 `r‖a‖∞ < 1` 上的一致 `L²` Neumann 族 |
+| Neumann 状态桥 | `MathlibBeltramiNeumannBridge.lean` | 🟡 条件性解析桥 | 连续不动点状态、连续状态求值到逐点/几乎处处 Beltrami 族、以及供局部图册连续性门使用的逆求值数据 |
 
 ### 当前边界
 
